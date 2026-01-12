@@ -38,10 +38,7 @@ tests/
    ```
 
 ## Usage
-An example implementation of creating a Data Quality report can be found [here](notebooks/example_ptbxl.ipynb). For running the example it is required to download ptbxl and create a symlink from the datafolder to ptbxl:
-```
-ln -s /full/path/to/your/local/ptbxl data/ptbxl
-```
+An example implementation of creating a Data Quality report can be found [here](notebooks/example_ptbxl.ipynb)
 
 ## Metrics
 |     Metric Name    | Implemented | Tested |
