@@ -41,12 +41,17 @@ tests/
 An example implementation of creating a Data Quality report can be found [here](notebooks/example_ptbxl.ipynb)
 
 ## Metrics
-|     Metric Name    | Implemented | Tested |
-|--------------------|-------------|--------|
-| Hill Numbers       |      x      |    x   |
-| Mean               |      x      |    x   |
-| Standard deviation |      x      |    x   |
-| IQR                |      x      |    x   |
+|        Metric Name        | Implemented | Tested |
+|---------------------------|-------------|--------|
+| Hill Numbers              |      x      |    x   |
+| Mean                      |      x      |    x   |
+| Standard deviation        |      x      |    x   |
+| IQR                       |      x      |    x   |
+| Syntactic Consistency     |      x      |        |
+| Limit of Quantification   |      x      |        |
+| Sample Entrop             |      x      |        |
+
+
 
 A documentation of required and optional parameters can be found here: https://gitlab1.ptb.de/martin.seyferth/metric/-/tree/main/metric/metrics
 
