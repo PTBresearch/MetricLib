@@ -8,7 +8,7 @@ from tqdm import tqdm
 from .util.util import add_bar
 
 from .data import Dataset
-from .metric import AggregationMetric, Metric
+from .metric import StreamMetric, TabularMetric
 from .metrics import (
     timeliness,
     representativeness,
@@ -166,7 +166,7 @@ class Report:
         ]
 
     def get_available_metrics(self) -> List[str]:
-        return list(Metric.registry.keys()) + list(AggregationMetric.registry.keys())
+        return list(TabularMetric.registry.keys()) + list(StreamMetric.registry.keys())
 
     def add_metric(
         self,
@@ -195,10 +195,10 @@ class Report:
                     "name": name,
                 }
             )
-        elif AggregationMetric.registry.get(metric_name):
+        elif StreamMetric.registry.get(metric_name):
             self.metrics.append(
                 {
-                    "metric": AggregationMetric.registry[metric_name],
+                    "metric": StreamMetric.registry[metric_name],
                     "reference": reference,
                     "metric_config": metric_config,
                     "dataset": (
@@ -255,7 +255,7 @@ class Report:
                     metric_config=metric_config,
                 )
                 self.metrics[name]["result"] = result
-            elif issubclass(metric_class, AggregationMetric):
+            elif issubclass(metric_class, StreamMetric):
                 for data_point in tqdm(dataset):
                     metric_instance.aggregate(
                         data_point,
@@ -263,12 +263,12 @@ class Report:
                         metric_config,
                     )
 
-                # result = metric_instance.compute(
-                #     data=metric_instance.result,
-                #     reference=reference,
-                #     metric_config=metric_config,
-                # )
-                # self.metrics[name]["result"] = result
+                result = metric_instance.compute(
+                    data=metric_instance.result,
+                    reference=reference,
+                    metric_config=metric_config,
+                )
+                self.metrics[name]["result"] = result
 
             if result.cluster and result.threshold:
                 deviation = (

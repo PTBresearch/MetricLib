@@ -20,10 +20,10 @@ class MetricResult:
 _T_co = TypeVar("_T_co", covariant=True)
 
 
-class AggregationMetric(ABC):
+class StreamMetric(ABC):
     """
-    Abstract base class for data point metrics.
-    All data point metric classes should inherit from this class and implement the `compute` method.
+    Abstract base class for stream metrics.
+    All stream metric classes should inherit from this class. It implements  and implement the `compute` method.
     """
 
     registry = {}
@@ -43,9 +43,11 @@ class AggregationMetric(ABC):
 
     def __init_subclass__(cls):
         super().__init_subclass__()
-        AggregationMetric.registry[cls.__name__] = cls
+        StreamMetric.registry[cls.__name__] = cls
 
         agg = cls.__dict__.get("aggregate", None)
+        if agg is not None:
+            cls.aggregate = StreamMetric.store(agg)
 
     @abstractmethod
     def aggregate(
@@ -114,7 +116,7 @@ class AggregationMetric(ABC):
 
 
 # Adapted from https://github.com/HPI-Information-Systems/Metis/blob/main/metis/metric/metric.py
-class Metric(ABC):
+class TabularMetric(ABC):
     """
     Abstract base class for metrics.
     All metric classes should inherit from this class and implement the `compute` method.
@@ -124,7 +126,7 @@ class Metric(ABC):
 
     def __init_subclass__(cls):
         super().__init_subclass__()
-        Metric.registry[cls.__name__] = cls
+        TabularMetric.registry[cls.__name__] = cls
 
     @abstractmethod
     def compute(

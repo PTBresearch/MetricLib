@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from ..metric import Metric, AggregationMetric, MetricResult
+from ..metric import Metric, MetricResult
 from ..util.util import add_bar
 
 
