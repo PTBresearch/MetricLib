@@ -3,7 +3,7 @@
 ## Overview
 `MetricLib`: an extensible toolkit for holistic data quality evaluation of medical ML datasets, based on the theoretical METRIC-framework for trustworthy AI in medicine. The toolkit is able to process a range of data modalities in a memory-efficient manner. While a core set of DQ metrics is implemented, `MetricLib` is easily extensible with custom metrics and therefore allows investigation of use-case-specific requirements. Additionally, by aggregated DQ scores, the tool enables the efficient identification of data quality gaps.
 
-## Project Structurechat
+## Project Structure
 ```
 metriclib/
     __init__.py
