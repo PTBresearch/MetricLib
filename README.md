@@ -49,7 +49,8 @@ An example implementation of creating a Data Quality report can be found [here](
 | IQR                       |      x      |    x   |
 | Syntactic Consistency     |      x      |        |
 | Limit of Quantification   |      x      |        |
-| Sample Entrop             |      x      |        |
+| Sample Entropy            |      x      |        |
+| Maximum Mean Discrepency  |      x      |        |
 
 
 

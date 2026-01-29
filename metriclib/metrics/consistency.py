@@ -1,5 +1,8 @@
-from ..metric import MetricResult, Metric
+import numpy as np
 import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+
+from ..metric import MetricResult, Metric
 
 
 class SyntacticConsistency(Metric):
@@ -46,4 +49,78 @@ class SyntacticConsistency(Metric):
         return MetricResult(
             description=f"{col} syntactic consistency",
             value=consistency,
+        )
+
+
+class MMD(Metric):
+    def compute(self, data: pd.DataFrame, reference: pd.DataFrame, metric_config=None):
+        """Compute a simple MMD-like distance between grouped features.
+
+        Configuration
+        - groups: dict
+            A dictionary with exactly one key where:
+            * The key is the name of the grouping column in the DataFrame.
+            * The value is a list of features column names whose
+              aggregated statistics (e.g., mean) will be compared across the
+              groups.
+            Example:
+                {"age group": ["20-30", "50-60"]}
+
+        Parameters
+        - data: pd.DataFrame
+            Input dataset to compute the distance on.
+        - reference: pd.DataFrame
+            Reference dataset (not used in current implementation).
+        - metric_config: dict | None
+            Configuration with the keys described above.
+
+        Returns
+        - float
+            A scalar norm of the difference between grouped means (placeholder
+            implementation).
+        """
+        if not metric_config or type(metric_config.get("groups")) is not dict:
+            raise ValueError(
+                "Metric configuration must specify the 'field_groups' to compare."
+            )
+
+        if type(metric_config.get("feature_cols")) is not list:
+            raise ValueError(
+                "Metric configuration must specify the 'feature_cols' to select comparable features."
+            )
+
+        df_selected = data[
+            metric_config.get("feature_cols")
+            + [list(metric_config["groups"].keys())[0]]
+        ].dropna()
+
+        embedded_data = pd.DataFrame(df_selected.select_dtypes(include=["number"]))
+
+        for col in df_selected.select_dtypes(exclude=["number"]).columns:
+            if col == list(metric_config["groups"].keys())[0]:
+                continue
+            mlb = LabelEncoder()
+            embedded_data[col] = pd.Series(mlb.fit_transform(data[col]))
+
+        # normalize embedded data except group column
+        for col in embedded_data.columns:
+            if (
+                col == list(metric_config["groups"].keys())[0]
+                or embedded_data[col].mean() == 0
+            ):
+                continue
+            embedded_data[col] = (
+                embedded_data[col] - embedded_data[col].mean()
+            ) / embedded_data[col].std()
+
+        embedded_data = embedded_data.groupby(
+            list(metric_config["groups"].keys())[0]
+        ).mean()
+
+        return MetricResult(
+            description=f"MMD",
+            value=np.linalg.norm(
+                embedded_data.loc[list(metric_config["groups"].values())[0][0]]
+                - embedded_data.loc[list(metric_config["groups"].values())[0][1]]
+            ),
         )
