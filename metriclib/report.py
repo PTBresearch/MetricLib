@@ -181,10 +181,10 @@ class Report:
                 "Multiple datasets present. Please specify the dataset_name for the metric."
             )
 
-        if Metric.registry.get(metric_name):
+        if TabularMetric.registry.get(metric_name):
             self.metrics.append(
                 {
-                    "metric": Metric.registry[metric_name],
+                    "metric": TabularMetric.registry[metric_name],
                     "reference": reference,
                     "metric_config": metric_config,
                     "dataset": (
@@ -247,7 +247,7 @@ class Report:
             dataset = self.datasets[index]
 
             metric_instance = metric_class()
-            if issubclass(metric_class, Metric):
+            if issubclass(metric_class, TabularMetric):
                 data_df = dataset.get_metadata()
                 result = metric_instance.compute(
                     data=data_df,

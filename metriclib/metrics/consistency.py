@@ -2,10 +2,10 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
-from ..metric import MetricResult, Metric
+from ..metric import MetricResult, TabularMetric
 
 
-class SyntacticConsistency(Metric):
+class SyntacticConsistency(TabularMetric):
     def compute(self, data: pd.DataFrame, reference=None, metric_config=None):
         """Compute the number of syntactic violations in a column for a specified column from a reference dictionary.
 
@@ -52,7 +52,7 @@ class SyntacticConsistency(Metric):
         )
 
 
-class MMD(Metric):
+class MMD(TabularMetric):
     def compute(self, data: pd.DataFrame, reference: pd.DataFrame, metric_config=None):
         """Compute a simple MMD-like distance between grouped features.
 

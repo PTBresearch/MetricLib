@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 import torch
 
-from ..metric import Metric, MetricResult
+from ..metric import TabularMetric, MetricResult
 from ..util.util import add_bar
 
 
-class Range(Metric):
+class Range(TabularMetric):
     def compute(self, data: pd.DataFrame, reference=None, metric_config=None):
         """Compute range (max - min) for a single numeric column.
 
@@ -41,7 +41,7 @@ class Range(Metric):
         )
 
 
-class IQR(Metric):
+class IQR(TabularMetric):
     def compute(self, data: pd.DataFrame, reference=None, metric_config=None):
         """Compute interquartile range (Q3 - Q1) for a single numeric column.
 
@@ -73,7 +73,7 @@ class IQR(Metric):
         return MetricResult(description=f"{col} IQR", value=value)
 
 
-class StdDev(Metric):
+class StdDev(TabularMetric):
     def compute(self, data: pd.DataFrame, reference=None, metric_config=None):
         """Compute sample standard deviation (ddof=1) for a single numeric column.
 
@@ -108,7 +108,7 @@ class StdDev(Metric):
         return MetricResult(description=f"{col} StdDev", value=value)
 
 
-class HillNumbers(Metric):
+class HillNumbers(TabularMetric):
     def compute(self, data: pd.DataFrame, reference=None, metric_config=None):
         """Compute Hill number (order q) for a single categorical column.
 
