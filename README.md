@@ -53,7 +53,7 @@ An example implementation of creating a Data Quality report can be found [here](
 | Maximum Mean Discrepency  |      x      |        |
 
 
-A documentation of required and optional parameters can be found here: https://gitlab1.ptb.de/martin.seyferth/metriclib/-/tree/main/metric/metrics
+A documentation of required and optional parameters can be found here: https://github.com/PTBresearch/MetricLib/blob/main/metriclib/metric.py
 
 ## Testing
 Run the unit tests using pytest:
