@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Evaluate data quality metrics on datasets"
 dynamic = ["dependencies"]
 authors = [{ name = "Martin Seyferth" }]
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.9,<3.12"
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}

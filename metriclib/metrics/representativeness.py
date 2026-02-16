@@ -3,6 +3,8 @@ import math
 import numpy as np
 import pandas as pd
 import torch
+import ot
+from scipy.spatial.distance import cdist
 
 from ..metric import TabularMetric, MetricResult
 from ..util.util import add_bar
@@ -165,4 +167,149 @@ class HillNumbers(TabularMetric):
             value=value,
             cluster="Representativeness",
             threshold=len(types),
+        )
+
+
+class WassersteinDistance1DTabular(TabularMetric):
+    def compute(self, data: pd.DataFrame, reference: pd.Series, metric_config=None):
+        """
+        Compute 1D Wasserstein distance between a categorical column and a
+        reference relative histogram.
+
+        metric_config must include:
+            {"column": "col1"}
+
+        `reference` is expected to be a relative histogram as a pd.Series
+        with a simple Index of category labels, e.g.:
+            reference = raw_df[col].value_counts(normalize=True)
+        """
+
+        if metric_config is None or "column" not in metric_config:
+            raise ValueError("metric_config must include a 'column' key")
+
+        col = metric_config["column"]
+
+        if col not in data.columns:
+            raise ValueError(f"Column '{col}' not found in data DataFrame.")
+        if pd.api.types.is_numeric_dtype(data[col]):
+            raise ValueError(f"Column '{col}' must be categorical (non-numeric).")
+
+        data_ = data[col].dropna()
+
+        if len(data_) == 0:
+            raise ValueError("Data is empty after dropping NaNs.")
+
+        # Validate reference histogram
+        if not isinstance(reference, pd.Series):
+            raise ValueError(
+                f"reference must be a pd.Series relative histogram, got {type(reference)}."
+            )
+        if isinstance(reference.index, pd.MultiIndex):
+            raise ValueError(
+                "reference must have a simple Index of category labels, not a MultiIndex."
+            )
+        if reference.values.min() < 0:
+            raise ValueError("reference histogram contains negative values.")
+        if not np.isclose(reference.sum(), 1.0, atol=1e-3):
+            raise ValueError(
+                f"reference histogram must sum to 1.0 (got {reference.sum():.4f}). "
+                "Normalize it first: ref / ref.sum()"
+            )
+
+        joint_data = data_.value_counts()
+
+        joint_data, joint_ref = joint_data.align(reference, fill_value=0)
+
+        p = joint_data.values.astype(float)
+        q = joint_ref.values.astype(float)
+
+        p /= p.sum()
+        q /= q.sum()
+
+        n = len(p)
+
+        M = np.ones((n, n)) - np.eye(n)
+
+        transport_matrix = ot.emd(p, q, M)
+        value = float((transport_matrix * M).sum())
+
+        return MetricResult(
+            description=f"1D Wasserstein Distance for {col} (categorical)",
+            value=value,
+            cluster="Representativeness",
+            threshold=0,
+        )
+
+
+class WassersteinDistance2DTabular(TabularMetric):
+    def compute(self, data: pd.DataFrame, reference: pd.Series, metric_config=None):
+        """
+        Compute 2D Wasserstein distance between two categorical columns.
+
+        metric_config must include:
+            {"columns": ["col1", "col2"]}
+
+        `reference` is expected to be a relative joint histogram as a pd.Series
+        with a MultiIndex of (col1, col2) pairs, e.g.:
+            reference = raw_df.groupby([col1, col2]).size()
+            reference = reference / reference.sum()
+        """
+
+        if metric_config is None or "columns" not in metric_config:
+            raise ValueError("metric_config must include a 'columns' key")
+
+        cols = metric_config["columns"]
+
+        if len(cols) != 2:
+            raise ValueError("'columns' must contain exactly two column names")
+
+        col1, col2 = cols
+
+        for col in cols:
+            if col not in data.columns:
+                raise ValueError(f"Column '{col}' not found in data DataFrame.")
+            if pd.api.types.is_numeric_dtype(data[col]):
+                raise ValueError(f"Column '{col}' must be categorical (non-numeric).")
+
+        data_ = data[cols].dropna()
+
+        if len(data_) == 0:
+            raise ValueError("Data is empty after dropping NaNs.")
+
+        if not isinstance(reference, pd.Series):
+            raise ValueError(
+                f"reference must be a pd.Series relative histogram, got {type(reference)}."
+            )
+        if not isinstance(reference.index, pd.MultiIndex):
+            raise ValueError("reference must have a MultiIndex of (col1, col2) pairs.")
+        if reference.values.min() < 0:
+            raise ValueError("reference histogram contains negative values.")
+        if not np.isclose(reference.sum(), 1.0, atol=1e-3):
+            raise ValueError(
+                f"reference histogram must sum to 1.0 (got {reference.sum():.4f}). "
+                "Normalize it first: ref / ref.sum()"
+            )
+
+        joint_data = data_.groupby([col1, col2]).size()
+
+        joint_data, joint_ref = joint_data.align(reference, fill_value=0)
+
+        p = joint_data.values.astype(float)
+        q = joint_ref.values.astype(float)
+
+        p /= p.sum()
+        q /= q.sum()
+
+        n = len(p)
+
+        M = np.ones((n, n)) - np.eye(n)
+
+        transport_matrix = ot.emd(p, q, M)
+        value = float((transport_matrix * M).sum())
+
+        return MetricResult(
+            description=f"2D Wasserstein Distance for {col1} & {col2} (categorical)",
+            value=value,
+            cluster="Representativeness",
+            threshold=0,
         )

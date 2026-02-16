@@ -232,26 +232,26 @@ def add_bar(
 
 
 def build_mosaique_figure(
-    data: List[Dict[str, Any]],
-    category_field: str,
-    proportion_field: str,
-    field_names: Optional[List[str]] = None,
+    filtered_metadata, category_field, proportion_field, name
 ) -> go.Figure:
-    """
-    Builds a mosaic plot using the provided data.
+    proportion_values = filtered_metadata[proportion_field].unique()
+    for proportion_value in proportion_values:
+        metadata = filtered_metadata
+        metadata = metadata.explode(category_field)
+        metadata[proportion_field] = metadata[proportion_field] == proportion_value
+        class_counts = (
+            metadata.groupby([category_field, proportion_field])
+            .size()
+            .rename("_class_counts")
+            .reset_index()
+        ).to_dict("records")
+        field_names = (
+            [proportion_value, "other"]
+            if len(proportion_values) > 2
+            else proportion_values
+        )
 
-    Args:
-        data (list of dict): The input data, where each dictionary represents a record.
-            Each dictionary must contain the keys "proportion_field", "category_field", and "_class_counts".
-        category_field (str): The field name to group data by for the y-axis categories.
-        proportion_field (str): The field name to calculate proportions for the x-axis.
-        field_names (list, optional): Custom names for the legend. Defaults to unique values in `proportion_field`.
-
-    Returns:
-        plotly.graph_objects.Figure: A Plotly figure object representing the mosaic plot.
-    """
-    df = pd.DataFrame.from_records(data)
-    field_names = df[proportion_field].unique() if field_names is None else field_names
+    df = pd.DataFrame.from_records(class_counts)
 
     # filter less than 1% of total size categories
     category_sizes = (
@@ -319,7 +319,7 @@ def build_mosaique_figure(
 
     x_start_label = 0
 
-    for i, name in enumerate(field_names):
+    for i, field_name in enumerate(field_names):
         fig.add_shape(
             type="rect",
             x0=x_start_label,
@@ -328,13 +328,30 @@ def build_mosaique_figure(
             y1=1,
             line=dict(color="black"),
             fillcolor=COLORS[i],
-            label=dict(text=f"{name}"),
+            label=dict(text=f"{field_name}"),
         )
         x_start_label += 0.1
 
+    title_text = None
+    if name is not None and str(name).strip() != "":
+        title_text = str(name)
+
     fig.update_layout(
+        title=(
+            dict(
+                text=title_text,
+                x=0.0,
+                xanchor="left",
+                y=0.985,
+                yanchor="top",
+                font=dict(color="white"),
+            )
+            if title_text
+            else None
+        ),
+        margin=(dict(t=50) if title_text else None),
         autosize=True,
-        height=max(len(category_sizes.index) * 50, 800),
+        height=max(len(category_sizes.index) * 30, 400),
         xaxis=dict(
             range=[0, 1],
             showgrid=False,

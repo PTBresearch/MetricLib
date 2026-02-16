@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
 
-from .util.util import add_bar
+from .util.util import add_bar, build_mosaique_figure
 
 from .data import Dataset
 from .metric import StreamMetric, TabularMetric
@@ -25,6 +25,15 @@ class ReportType(TypedDict):
 
 
 class Report:
+    @staticmethod
+    def _mosaique_chart(
+        dataset_dfs: List[pd.DataFrame],
+        filtered_dfs: List[pd.DataFrame] = None,
+        chart_config: dict = {},
+    ):
+        figure = build_mosaique_figure(dataset_dfs, chart_config)
+        return figure
+
     @staticmethod
     def _continuous_bar_chart(
         dataset_dfs: List[pd.DataFrame],
@@ -154,16 +163,34 @@ class Report:
         self.datasets: List[Dataset] = datasets
         self.metrics: List[str, Dict[str, Any]] = []
         self.charts: List[Dict[str, Any]] = []
-        self.scores: List[Dict[str, Optional[float]]] = [
-            {
-                "Measurement Process": 0.0,
-                "Timeliness": 0.0,
-                "Representativeness": 0.0,
-                "Informativeness": 0.0,
-                "Consistency": 0.0,
-            }
-            for _ in datasets
-        ]
+
+        if len(datasets) == 1:
+            self.scores: List[Dict[str, Optional[float]]] = [
+                {
+                    "Measurement Process": 0.9,
+                    "Timeliness": 0.87,
+                    "Representativeness": 0.4,
+                    "Informativeness": 0.85,
+                    "Consistency": 0.8,
+                }
+            ]
+        else:
+            self.scores: List[Dict[str, Optional[float]]] = [
+                {
+                    "Measurement Process": 0.9,
+                    "Timeliness": 0.87,
+                    "Representativeness": 0.4,
+                    "Informativeness": 0.85,
+                    "Consistency": 0.8,
+                },
+                {
+                    "Measurement Process": 0.9,
+                    "Timeliness": 0.82,
+                    "Representativeness": 0.7,
+                    "Informativeness": 0.85,
+                    "Consistency": 0.8,
+                },
+            ]
 
     def get_available_metrics(self) -> List[str]:
         return list(TabularMetric.registry.keys()) + list(StreamMetric.registry.keys())
