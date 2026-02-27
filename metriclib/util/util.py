@@ -232,8 +232,10 @@ def add_bar(
 
 
 def build_mosaique_figure(
-    filtered_metadata, category_field, proportion_field, name
+    filtered_metadata, labels, index, category_field, proportion_field, name
 ) -> go.Figure:
+    filtered_metadata = filtered_metadata[index]
+    filtered_metadata["labels"] = labels[index]
     proportion_values = filtered_metadata[proportion_field].unique()
     for proportion_value in proportion_values:
         metadata = filtered_metadata

@@ -28,10 +28,11 @@ class Report:
     @staticmethod
     def _mosaique_chart(
         dataset_dfs: List[pd.DataFrame],
+        labels: List[pd.Series],
         filtered_dfs: List[pd.DataFrame] = None,
         chart_config: dict = {},
     ):
-        figure = build_mosaique_figure(dataset_dfs, chart_config)
+        figure = build_mosaique_figure(dataset_dfs, labels, **chart_config)
         return figure
 
     @staticmethod
@@ -163,34 +164,18 @@ class Report:
         self.datasets: List[Dataset] = datasets
         self.metrics: List[str, Dict[str, Any]] = []
         self.charts: List[Dict[str, Any]] = []
+        self.scores: List[Dict[str, Optional[float]]] = []
 
-        if len(datasets) == 1:
-            self.scores: List[Dict[str, Optional[float]]] = [
+        for _ in datasets:
+            self.scores.append(
                 {
-                    "Measurement Process": 0.9,
-                    "Timeliness": 0.87,
-                    "Representativeness": 0.4,
-                    "Informativeness": 0.85,
-                    "Consistency": 0.8,
+                    "Measurement Process": 0,
+                    "Timeliness": 0,
+                    "Representativeness": 0,
+                    "Informativeness": 0,
+                    "Consistency": 0,
                 }
-            ]
-        else:
-            self.scores: List[Dict[str, Optional[float]]] = [
-                {
-                    "Measurement Process": 0.9,
-                    "Timeliness": 0.87,
-                    "Representativeness": 0.4,
-                    "Informativeness": 0.85,
-                    "Consistency": 0.8,
-                },
-                {
-                    "Measurement Process": 0.9,
-                    "Timeliness": 0.82,
-                    "Representativeness": 0.7,
-                    "Informativeness": 0.85,
-                    "Consistency": 0.8,
-                },
-            ]
+            )
 
     def get_available_metrics(self) -> List[str]:
         return list(TabularMetric.registry.keys()) + list(StreamMetric.registry.keys())
@@ -308,6 +293,8 @@ class Report:
             chart_type = chart_info["type"]
             chart_config = chart_info["config"]
             dataset_dfs = [ds.get_metadata() for ds in self.datasets]
+            labels = [ds.get_labels() for ds in self.datasets]
+
             if chart_type == "categorical_bar_chart":
                 figure = self._categorical_bar_chart(
                     dataset_dfs=dataset_dfs,
@@ -317,6 +304,13 @@ class Report:
             elif chart_type == "continuous_bar_chart":
                 figure = self._continuous_bar_chart(
                     dataset_dfs=dataset_dfs,
+                    chart_config=chart_config,
+                )
+                self.charts[name]["figure"] = figure
+            elif chart_type == "mosaique_chart":
+                figure = self._mosaique_chart(
+                    dataset_dfs=dataset_dfs,
+                    labels=labels,
                     chart_config=chart_config,
                 )
                 self.charts[name]["figure"] = figure
