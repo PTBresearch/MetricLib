@@ -82,7 +82,6 @@ class MetadataCompleteness(TabularMetric):
             threshold=1.0,
         )
 
-# # actual metric implementation  
         
 class DICEScore(StreamMetric):
 
