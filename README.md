@@ -55,7 +55,7 @@ An example implementation of creating a Data Quality report can be found [here](
 | Completeness                  |      x      |        |
 | Currentness (Heinrich)        |      x      |        |
 | Wasserstein Distance          |      x      |        |
-| Dublicates                    |      x      |        |
+| Duplicates                    |      x      |        |
 | Demographic Parity            |      x      |        |
 | Generalized Imabalance Ratio  |      x      |        |
 
