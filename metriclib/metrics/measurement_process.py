@@ -1,6 +1,7 @@
 import numpy as np
 import antropy as ant
-from SimpleITK import LabelOverlapMeasuresImageFilter
+import simpleITK as sitk
+from scipy.ndimage import binary_erosion
 from ..metric import MetricResult, StreamMetric, TabularMetric
 
 
@@ -83,10 +84,19 @@ class MetadataCompleteness(TabularMetric):
         )
 
         
-class DICEScore(StreamMetric):
+class DICESimilarityCoefficient(StreamMetric):
+    """
+    Computes de DSC between two segmentations. 
+    Needs to have two segmentation files in NIFTI format.
+    In the dataset : segmentations are loaded with sitk.ReadImage(segmentation_path).
+    """
 
     def aggregate(self, datapoint, reference=None, metric_config=None):
-        overlap = LabelOverlapMeasuresImageFilter()
+        if not isinstance(datapoint[1], tuple):
+            raise ValueError("Two segmentations (in a tuple) are required to compute this metric.")
+        if not isinstance(datapoint[1][0],sitk.SimpleITK.Image) or not isinstance(datapoint[1][1],sitk.SimpleITK.Image):
+            raise ValueError("Segmentations must be sitk.SimpleITK.Image format.")
+        overlap = sitk.LabelOverlapMeasuresImageFilter()
         overlap.Execute(datapoint[1][0], datapoint[1][1])
         dice = overlap.GetDiceCoefficient()
         return dice
@@ -101,9 +111,18 @@ class DICEScore(StreamMetric):
         return res
 
 class IntersectionOverUnion(StreamMetric):
+    """
+    Computes de Intersection over Union score between two segmentations. 
+    Needs to have two segmentation files in NIFTI format.
+    In the dataset : segmentations are loaded with sitk.ReadImage(segmentation_path).
+    """
 
     def aggregate(self, datapoint, reference=None, metric_config=None):
-        overlap = LabelOverlapMeasuresImageFilter()
+        if not isinstance(datapoint[1], tuple):
+            raise ValueError("Two segmentations (in a tuple) are required to compute this metric.")
+        if not isinstance(datapoint[1][0],sitk.SimpleITK.Image) or not isinstance(datapoint[1][1],sitk.SimpleITK.Image):
+            raise ValueError("Segmentations must be sitk.SimpleITK.Image format.")
+        overlap = sitk.LabelOverlapMeasuresImageFilter()
         overlap.Execute(datapoint[1][0], datapoint[1][1])
         iou = overlap.GetJaccardCoefficient()
         return iou
@@ -119,7 +138,9 @@ class IntersectionOverUnion(StreamMetric):
         
 class HausdorffDistance(StreamMetric):
     """
-    Compute Hausdorff Distance between two segmentations.
+    Computes de Hausdorff Distance (in mm) between two segmentations. 
+    Needs to have two segmentation files in NIFTI format.
+    In the dataset : segmentations are loaded with sitk.ReadImage(segmentation_path).
     """
     
     def _mask_to_surface_indices(self, mask_np):
@@ -131,7 +152,6 @@ class HausdorffDistance(StreamMetric):
         Returns:
             np.Array : indices in array index order (z,y,x)
         """
-        from scipy.ndimage import binary_erosion
         eroded = binary_erosion(mask_np)
         surface = mask_np & (~eroded)
         inds = np.argwhere(surface)
@@ -199,6 +219,10 @@ class HausdorffDistance(StreamMetric):
         return hd_max
     
     def aggregate(self, datapoint, reference=None, metric_config=None):
+        if not isinstance(datapoint[1], tuple):
+            raise ValueError("Two segmentations (in a tuple) are required to compute this metric.")
+        if not isinstance(datapoint[1][0],sitk.SimpleITK.Image) or not isinstance(datapoint[1][1],sitk.SimpleITK.Image):
+            raise ValueError("Segmentations must be sitk.SimpleITK.Image format.")
         hd = self._getHD(datapoint[1][0], datapoint[1][1])
         return hd
 
@@ -213,7 +237,9 @@ class HausdorffDistance(StreamMetric):
     
 class HausdorffDistance95(StreamMetric):
     """
-    Compute Hausdorff Distance 95 between two segmentations.
+    Computes de Hausdorff Distance 95 (in mm) between two segmentations. 
+    Needs to have two segmentation files in NIFTI format.
+    In the dataset : segmentations are loaded with sitk.ReadImage(segmentation_path).
     """
     
     def _mask_to_surface_indices(self, mask_np):
@@ -225,7 +251,6 @@ class HausdorffDistance95(StreamMetric):
         Returns:
             np.Array : indices in array index order (z,y,x)
         """
-        from scipy.ndimage import binary_erosion
         eroded = binary_erosion(mask_np)
         surface = mask_np & (~eroded)
         inds = np.argwhere(surface)
@@ -294,6 +319,10 @@ class HausdorffDistance95(StreamMetric):
         return hd95
     
     def aggregate(self, datapoint, reference=None, metric_config=None):
+        if not isinstance(datapoint[1], tuple):
+            raise ValueError("Two segmentations (in a tuple) are required to compute this metric.")
+        if not isinstance(datapoint[1][0],sitk.SimpleITK.Image) or not isinstance(datapoint[1][1],sitk.SimpleITK.Image):
+            raise ValueError("Segmentations must be sitk.SimpleITK.Image format.")
         hd95 = self._getHD95(datapoint[1][0], datapoint[1][1])
         return hd95
 
