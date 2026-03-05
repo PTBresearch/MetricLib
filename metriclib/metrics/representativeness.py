@@ -435,3 +435,28 @@ class MultiLabelDemographicParity(StreamMetric):
             cluster="Representativeness",
             threshold=1.0,
         )
+
+
+class Resolution(StreamMetric):
+    def aggregate(self, datapoint, reference=None, metric_config=None):
+        return datapoint[0].shape
+
+    def compute(self, data, reference, metric_config):
+        distinct_resolutions = len(Counter(value for value in data))
+
+        return MetricResult(
+            cluster=None,
+            threshold=0,
+            description="Number of distinct resolutions in the dataset",
+            value=distinct_resolutions,
+        )
+
+
+class DatasetSize(TabularMetric):
+    def compute(self, data, reference=None, metric_config=None):
+        return MetricResult(
+            cluster=None,
+            threshold=0,
+            description="Dataset size (number of samples)",
+            value=len(data),
+        )

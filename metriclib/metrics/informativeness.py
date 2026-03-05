@@ -49,6 +49,7 @@ class PearsonCorrelation(StreamMetric):
 
     def compute(self, data, reference=None, metric_config=None):
         features, target = zip(*data)
+        features = [[str(value) for value in row] for row in features]
 
         features = MultiLabelBinarizer().fit_transform(features)
         target = np.array(target)
