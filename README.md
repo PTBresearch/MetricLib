@@ -39,7 +39,8 @@ tests/
 
 ## Usage
 An example implementation of creating a Data Quality report can be found [here](notebooks/example_ptbxl.ipynb)
-An example implementation of creating a report on a segmentation usecase can be found [here](notebooks/example_chaos.ipynb)
+
+An example implementation of creating a report on a segmentation usecase can be found [here](notebooks/example_chaos.ipynb) 
 
 ## Metrics
 |        Metric Name            | Implemented | Tested |
