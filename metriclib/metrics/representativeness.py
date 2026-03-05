@@ -6,7 +6,7 @@ import torch
 import ot
 from scipy.spatial.distance import cdist
 
-from ..metric import TabularMetric, MetricResult
+from ..metric import TabularMetric, StreamMetric, MetricResult
 from ..util.util import add_bar
 
 
@@ -312,4 +312,126 @@ class WassersteinDistance2DTabular(TabularMetric):
             value=value,
             cluster="Representativeness",
             threshold=0,
+        )
+
+
+class MultiClassGeneralizedImbalanceRatio(StreamMetric):
+    def aggregate(self, data_point, reference=None, metric_config=None):
+        return data_point[1]
+
+    def compute(self, data, reference, metric_config):
+        counts = np.sum(np.array(data), axis=0)
+        min_count = min(counts)
+        if min_count == 0:
+            raise ValueError(
+                "MultiClassGeneralizedImbalanceRatio is undefined when min class count is 0."
+            )
+        value = max(counts) / min_count
+        return MetricResult(
+            description="MultiClass Generalized Imbalance Ratio",
+            value=value,
+            cluster="Representativeness",
+            threshold=0.0,
+        )
+
+
+class MultiLabelGeneralizedImbalanceRatio(StreamMetric):
+    def aggregate(self, data_point, reference=None, metric_config=None):
+        return data_point[1]
+
+    def compute(self, data, reference, metric_config):
+        counts = np.unique(np.array(data), return_counts=True)[1]
+        min_count = min(counts)
+        if min_count == 0:
+            raise ValueError(
+                "MultiLabelGeneralizedImbalanceRatio is undefined when min label count is 0."
+            )
+        value = max(counts) / min_count
+        return MetricResult(
+            description="MultiLabel Generalized Imbalance Ratio",
+            value=value,
+            cluster="Representativeness",
+            threshold=0.0,
+        )
+
+
+class MultiClassDemographicParity(StreamMetric):
+    def aggregate(self, data_point, reference=None, metric_config=None):
+        return (
+            torch.where(data_point[1] == 1),
+            data_point[2][metric_config["protected_attribute"]],
+        )
+
+    def compute(self, data, reference, metric_config):
+        df = pd.DataFrame(data, columns=["label", "protected_attribute"])
+        df = df.explode("label")
+
+        group_counts = (
+            df.groupby(["protected_attribute", "label"]).size().unstack(fill_value=0)
+        )
+
+        group_mins = group_counts.min(axis=0)
+        group_maxs = group_counts.max(axis=0)
+
+        value = group_maxs.div(group_mins).max()
+
+        if value == float("inf"):
+            raise ValueError(
+                "DemographicParity is undefined when any group has 0 positive labels."
+            )
+
+        return MetricResult(
+            description="Mean Multilabel Demographic Parity Ratio",
+            value=value,
+            cluster="Representativeness",
+            threshold=1.0,
+        )
+
+
+class MultiLabelDemographicParity(StreamMetric):
+    """Demographic parity ratio for multi-label data.
+
+    Computes, per label, the ratio of the maximum to minimum count across
+    protected groups, then returns the maximum of those ratios.
+    """
+
+    def aggregate(self, data_point, reference=None, metric_config=None):
+        """Collect (label, protected_attribute) pairs from a single data point."""
+        return (
+            data_point[1],
+            data_point[2][metric_config["protected_attribute"]],
+        )
+
+    def compute(self, data, reference, metric_config):
+        """Compute the demographic parity ratio.
+
+        Raises ValueError if any protected group has zero samples for a label.
+        """
+        if metric_config is None or "protected_attribute" not in metric_config:
+            raise ValueError("metric_config must include 'protected_attribute'.")
+
+        if data is None or len(data) == 0:
+            raise ValueError("MultiLabelDemographicParity requires non-empty data.")
+
+        df = pd.DataFrame(data, columns=["label", "protected_attribute"])
+
+        group_counts = (
+            df.groupby(["protected_attribute", "label"]).size().unstack(fill_value=0)
+        )
+
+        group_mins = group_counts.min(axis=0)
+        group_maxs = group_counts.max(axis=0)
+
+        if (group_mins == 0).any():
+            raise ValueError(
+                "MultiLabelDemographicParity is undefined when any group has 0 samples for a label."
+            )
+
+        value = group_maxs.div(group_mins).max()
+
+        return MetricResult(
+            description="Mean Multilabel Demographic Parity Ratio",
+            value=value,
+            cluster="Representativeness",
+            threshold=1.0,
         )

@@ -41,21 +41,23 @@ tests/
 An example implementation of creating a Data Quality report can be found [here](notebooks/example_ptbxl.ipynb)
 
 ## Metrics
-|        Metric Name        | Implemented | Tested |
-|---------------------------|-------------|--------|
-| Hill Numbers              |      x      |    x   |
-| Mean                      |      x      |    x   |
-| Standard Deviation        |      x      |    x   |
-| IQR                       |      x      |    x   |
-| Syntactic Consistency     |      x      |        |
-| Limit of Quantification   |      x      |        |
-| Sample Entropy            |      x      |        |
-| Maximum Mean Discrepency  |      x      |        |
-| Signal to Noise Ratio     |      x      |        |
-| Completeness              |      x      |        |
-| Currentness (Heinrich)    |      x      |        |
-| Wasserstein Distance      |      x      |        |
-| Dublicates                |      x      |        |
+|        Metric Name            | Implemented | Tested |
+|-------------------------------|-------------|--------|
+| Hill Numbers                  |      x      |    x   |
+| Mean                          |      x      |    x   |
+| Standard Deviation            |      x      |    x   |
+| IQR                           |      x      |    x   |
+| Syntactic Consistency         |      x      |        |
+| Limit of Quantification       |      x      |        |
+| Sample Entropy                |      x      |        |
+| Maximum Mean Discrepency      |      x      |        |
+| Signal to Noise Ratio         |      x      |        |
+| Completeness                  |      x      |        |
+| Currentness (Heinrich)        |      x      |        |
+| Wasserstein Distance          |      x      |        |
+| Duplicates                    |      x      |        |
+| Demographic Parity            |      x      |        |
+| Generalized Imabalance Ratio  |      x      |        |
 
 
 A documentation of required and optional parameters can be found here: https://github.com/PTBresearch/MetricLib/blob/main/metriclib/metric.py

@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
 
-from .util.util import add_bar, build_mosaique_figure
+from .util.util import add_bar, build_mosaique_label_figure
 
 from .data import Dataset
 from .metric import StreamMetric, TabularMetric
@@ -26,13 +26,13 @@ class ReportType(TypedDict):
 
 class Report:
     @staticmethod
-    def _mosaique_chart(
+    def _mosaique_label_chart(
         dataset_dfs: List[pd.DataFrame],
         labels: List[pd.Series],
         filtered_dfs: List[pd.DataFrame] = None,
         chart_config: dict = {},
     ):
-        figure = build_mosaique_figure(dataset_dfs, labels, **chart_config)
+        figure = build_mosaique_label_figure(dataset_dfs, labels, **chart_config)
         return figure
 
     @staticmethod
@@ -307,8 +307,8 @@ class Report:
                     chart_config=chart_config,
                 )
                 self.charts[name]["figure"] = figure
-            elif chart_type == "mosaique_chart":
-                figure = self._mosaique_chart(
+            elif chart_type == "mosaique_label_chart":
+                figure = self._mosaique_label_chart(
                     dataset_dfs=dataset_dfs,
                     labels=labels,
                     chart_config=chart_config,
