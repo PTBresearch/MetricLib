@@ -1,6 +1,6 @@
 import numpy as np
 import antropy as ant
-import simpleITK as sitk
+import SimpleITK as sitk
 from scipy.ndimage import binary_erosion
 from ..metric import MetricResult, StreamMetric, TabularMetric
 
