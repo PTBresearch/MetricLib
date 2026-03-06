@@ -63,7 +63,7 @@ class PearsonCorrelation(StreamMetric):
         )
         return MetricResult(
             cluster="Informativeness",
-            threshold=0,
+            threshold=0.001,
             description="Pearson correlation between features and target",
             value=min(np.abs(correlations)),
         )

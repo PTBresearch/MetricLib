@@ -44,7 +44,7 @@ class CurrencyHeinrich(TabularMetric):
         if not pd.api.types.is_datetime64_any_dtype(created_at):
             created_at = pd.to_datetime(created_at, errors="coerce")
 
-        A = metric_config.get("A", 1)
+        A = metric_config.get("A", 1e-9)
 
         created_at = created_at.dropna()
         mean_currency = created_at.apply(

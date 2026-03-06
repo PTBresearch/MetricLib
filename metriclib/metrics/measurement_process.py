@@ -32,16 +32,21 @@ class SampleEntropy(StreamMetric):
     def aggregate(self, datapoint, reference=None, metric_config=None):
         values = []
         for i in range(datapoint[0].shape[0]):
-            m = 2
-            r = 0.2 * np.std(datapoint[0][i, :])
-            values.append(ant.sample_entropy(datapoint[0][i, :], m, r))
-        entropy = np.mean(values)
+            x = np.asarray(datapoint[0][i, :], dtype=np.float64)
+            x = np.ascontiguousarray(x)  # important for numba
+            m = int(2)
+            r = float(0.2 * np.std(x))
+            values.append(
+                ant.sample_entropy(x, order=m, tolerance=r, metric="chebyshev")
+            )
+
+        entropy = float(np.mean(values))
 
         return entropy
 
     def compute(self, data, reference, metric_config):
         return MetricResult(
-            cluster=None,
+            cluster="MeasurementProcess",
             threshold=0,
             description="Mean sample entropy across all leads",
             value=np.array(data).mean(),
@@ -61,7 +66,7 @@ class SNR(StreamMetric):
     def compute(self, data, reference, metric_config):
         return MetricResult(
             cluster=None,
-            threshold=0,
+            threshold=0.001,
             description="Mean SNR across all leads",
             value=np.array(data).mean(),
         )
@@ -77,6 +82,6 @@ class MetadataCompleteness(TabularMetric):
         return MetricResult(
             description="Metadata Completeness",
             value=completeness,
-            cluster="Representativeness",
+            cluster="Measurement Process",
             threshold=1.0,
         )
