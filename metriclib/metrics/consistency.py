@@ -123,4 +123,6 @@ class MMD(TabularMetric):
                 embedded_data.loc[list(metric_config["groups"].values())[0][0]]
                 - embedded_data.loc[list(metric_config["groups"].values())[0][1]]
             ),
+            cluster="Consistency",
+            threshold=0.00001,
         )

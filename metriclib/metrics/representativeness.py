@@ -357,8 +357,9 @@ class MultiLabelGeneralizedImbalanceRatio(StreamMetric):
 
 class MultiClassDemographicParity(StreamMetric):
     def aggregate(self, data_point, reference=None, metric_config=None):
+        labels = torch.where(torch.tensor(data_point[1]) == 1)[0].tolist()
         return (
-            torch.where(data_point[1] == 1),
+            labels,
             data_point[2][metric_config["protected_attribute"]],
         )
 
