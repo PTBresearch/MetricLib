@@ -40,6 +40,8 @@ tests/
 ## Usage
 An example implementation of creating a Data Quality report can be found [here](notebooks/example_ptbxl.ipynb)
 
+An example implementation of creating a report on a segmentation usecase can be found [here](notebooks/example_chaos.ipynb) 
+
 ## Metrics
 |        Metric Name            | Implemented | Tested |
 |-------------------------------|-------------|--------|
@@ -58,6 +60,10 @@ An example implementation of creating a Data Quality report can be found [here](
 | Duplicates                    |      x      |        |
 | Demographic Parity            |      x      |        |
 | Generalized Imabalance Ratio  |      x      |        |
+| DICE Similarity Coefficient   |      x      |        |
+| Intersection over Union       |      x      |        |
+| Hausdorff Distance            |      x      |        |
+| Hausdorff Distance 95         |      x      |        |
 
 
 A documentation of required and optional parameters can be found here: https://github.com/PTBresearch/MetricLib/blob/main/metriclib/metric.py

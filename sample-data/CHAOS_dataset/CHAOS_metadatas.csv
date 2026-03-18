@@ -1,0 +1,5 @@
+CHAOS_ID;PatientName;XRayTubeCurrent;PixelSpacing;SliceThickness;BodyPartExamined;InstitutionName;ConvolutionKernel;KVP;CTDIvol;StudyDescription;SeriesDescription;Manufacturer;ManufacturerModelName;path_file_source;path_file_segmentation_1;path_file_segmentation_2
+39;CHAOS^CT_SET_39;227;[0.772, 0.772];2.0;;;FC18;100.0;;;;;;CHAOS_dataset/img_NIFTI/CHAOS_39.nii.gz;CHAOS_dataset/seg_TotalSegmentator_NIFTI/CHAOS_39.nii.gz;CHAOS_dataset/seg_nnInteractive_NIFTI/CHAOS_39.nii.gz
+38;CHAOS^CT_SET_38;296;[0.76171875, 0.76171875];2.0;;;B;120.0;;;;;;CHAOS_dataset/img_NIFTI/CHAOS_38.nii.gz;CHAOS_dataset/seg_TotalSegmentator_NIFTI/CHAOS_38.nii.gz;CHAOS_dataset/seg_nnInteractive_NIFTI/CHAOS_38.nii.gz
+40;CHAOS^CT_SET_40;305;[0.68359375, 0.68359375];2.0;;;B;120.0;;;;;;CHAOS_dataset/img_NIFTI/CHAOS_40.nii.gz;CHAOS_dataset/seg_TotalSegmentator_NIFTI/CHAOS_40.nii.gz;CHAOS_dataset/seg_nnInteractive_NIFTI/CHAOS_40.nii.gz
+37;CHAOS^CT_SET_37;391;[0.68359375, 0.68359375];2.0;;;B;120.0;;;;;;CHAOS_dataset/img_NIFTI/CHAOS_37.nii.gz;CHAOS_dataset/seg_TotalSegmentator_NIFTI/CHAOS_37.nii.gz;CHAOS_dataset/seg_nnInteractive_NIFTI/CHAOS_37.nii.gz
