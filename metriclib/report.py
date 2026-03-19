@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
 
-from .util.util import add_bar, build_mosaique_label_figure
+from .util.util import add_bar, build_label_bar_figure, build_mosaique_label_figure
 
 from .data import Dataset
 from .metric import StreamMetric, TabularMetric, MetricResult
@@ -33,6 +33,16 @@ class Report:
         chart_config: dict = {},
     ):
         figure = build_mosaique_label_figure(dataset_dfs, labels, **chart_config)
+        return figure
+
+    @staticmethod
+    def _label_bar_chart(
+        dataset_dfs: List[pd.DataFrame],
+        labels: List[pd.Series],
+        filtered_dfs: List[pd.DataFrame] = None,
+        chart_config: dict = {},
+    ):
+        figure = build_label_bar_figure(dataset_dfs, labels, **chart_config)
         return figure
 
     @staticmethod
@@ -533,6 +543,13 @@ class Report:
                 figure = self._continuous_bar_chart(
                     dataset_dfs=dataset_dfs,
                     filtered_dfs=filtered_dfs,
+                    chart_config=chart_config,
+                )
+                self.charts[name]["figure"] = figure
+            elif chart_type == "label_bar_chart":
+                figure = self._label_bar_chart(
+                    dataset_dfs=dataset_dfs,
+                    labels=labels,
                     chart_config=chart_config,
                 )
                 self.charts[name]["figure"] = figure

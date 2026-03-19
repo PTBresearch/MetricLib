@@ -231,6 +231,76 @@ def add_bar(
     return figure
 
 
+def build_label_bar_figure(dataset_dfs, labels) -> go.Figure:
+    """Build a label bar chart equivalent to categorical_bar_chart.
+
+    Labels are expected to be array-like multi-hot vectors and are exploded to
+    class names (e.g. "Class 0", "Class 1") before counting.
+    """
+    figure = go.Figure(data=[])
+    prepared = []
+    all_keys = set()
+
+    def _to_class_list(value):
+        if value is None:
+            return []
+        if isinstance(value, float) and np.isnan(value):
+            return []
+
+        arr = np.asarray(value)
+        if arr.ndim == 0:
+            return []
+
+        return [f"Class {i}" for i, v in enumerate(arr) if v == 1]
+
+    for i, _ in enumerate(dataset_dfs):
+        if i >= len(labels):
+            continue
+
+        label_values = labels[i]
+        label_series = (
+            label_values
+            if isinstance(label_values, pd.Series)
+            else pd.Series(label_values)
+        ).copy()
+        label_series = label_series.apply(_to_class_list)
+
+        values = label_series.explode().dropna()
+        filtered_values = values
+
+        hist_values = values.value_counts().to_dict()
+        hist_values_filtered = filtered_values.value_counts().to_dict()
+
+        prepared.append((i, hist_values, hist_values_filtered))
+        all_keys.update(hist_values.keys())
+        all_keys.update(hist_values_filtered.keys())
+
+    if not prepared or not all_keys:
+        return figure
+
+    try:
+        numeric_keys = {k: float(str(k).split(" ")[-1]) for k in all_keys}
+        sorted_keys = sorted(all_keys, key=lambda k: numeric_keys[k])
+    except (TypeError, ValueError, IndexError):
+        sorted_keys = sorted(all_keys, key=lambda k: str(k).casefold())
+
+    for i, hist_values, hist_values_filtered in prepared:
+        aligned_hist = {k: hist_values.get(k, 0) for k in sorted_keys}
+        aligned_filtered = {k: hist_values_filtered.get(k, 0) for k in sorted_keys}
+
+        figure = add_bar(
+            f"dataset{i+1}",
+            sorted_keys,
+            figure,
+            aligned_hist,
+            aligned_filtered,
+            yaxis_title="Counts",
+            xaxis_title="labels",
+        )
+
+    return figure
+
+
 def build_mosaique_label_figure(
     filtered_metadata, labels, index, category_field, proportion_field, name
 ) -> go.Figure:
