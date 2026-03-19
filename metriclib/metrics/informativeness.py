@@ -49,21 +49,46 @@ class PearsonCorrelation(StreamMetric):
 
     def compute(self, data, reference=None, metric_config=None):
         features, target = zip(*data)
-        features = [[str(value) for value in row] for row in features]
-
-        features = MultiLabelBinarizer().fit_transform(features)
-        target = np.array(target)
-
-        correlations = np.array(
-            [
-                pearsonr(features[:, j], target[:, i])[0]
-                for j in range(features.shape[1])
-                for i in range(target.shape[1])
-            ]
+        features = (
+            MultiLabelBinarizer()
+            .fit_transform([[str(value) for value in row] for row in features])
+            .astype(np.float64)
         )
+
+        try:
+            target = np.asarray(target, dtype=np.float64)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "PearsonCorrelation target must be numeric and rectangular."
+            ) from exc
+
+        if target.ndim == 1:
+            target = target.reshape(-1, 1)
+        elif target.ndim != 2:
+            raise ValueError("PearsonCorrelation target must be a 1D or 2D array.")
+
+        if features.shape[0] != target.shape[0]:
+            raise ValueError(
+                "PearsonCorrelation features and target must have the same number of samples."
+            )
+
+        if features.shape[0] < 2 or features.shape[1] == 0 or target.shape[1] == 0:
+            value = 0.0
+        else:
+            correlations = np.asarray(
+                [
+                    pearsonr(features[:, j], target[:, i])[0]
+                    for j in range(features.shape[1])
+                    for i in range(target.shape[1])
+                ],
+                dtype=np.float64,
+            )
+            finite = np.abs(correlations[np.isfinite(correlations)])
+            value = float(np.min(finite)) if finite.size else 0.0
+
         return MetricResult(
             cluster="Informativeness",
             threshold=0.00001,
             description="Pearson correlation between features and target",
-            value=min(np.abs(correlations)),
+            value=value,
         )

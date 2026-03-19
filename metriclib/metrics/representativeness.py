@@ -1,4 +1,5 @@
 from collections import Counter
+import ast
 import math
 import numpy as np
 import pandas as pd
@@ -364,8 +365,82 @@ class MultiClassDemographicParity(StreamMetric):
         )
 
     def compute(self, data, reference, metric_config):
-        df = pd.DataFrame(data, columns=["label", "protected_attribute"])
+        def _parse_record(record):
+            if isinstance(record, str):
+                try:
+                    record = ast.literal_eval(record)
+                except (ValueError, SyntaxError):
+                    return None
+
+            if isinstance(record, np.ndarray):
+                record = record.tolist()
+            elif isinstance(record, pd.Series):
+                record = record.tolist()
+
+            if isinstance(record, dict):
+                if "label" in record and "protected_attribute" in record:
+                    return record["label"], record["protected_attribute"]
+                return None
+
+            if isinstance(record, (tuple, list)) and len(record) == 2:
+                return record[0], record[1]
+
+            return None
+
+        def _normalize_labels(labels):
+            if labels is None:
+                return []
+
+            if isinstance(labels, str):
+                try:
+                    parsed = ast.literal_eval(labels)
+                    if isinstance(parsed, (list, tuple, np.ndarray, pd.Series)):
+                        labels = parsed
+                    else:
+                        labels = [parsed]
+                except (ValueError, SyntaxError):
+                    labels = [labels]
+
+            if isinstance(labels, np.ndarray):
+                labels = labels.tolist()
+            elif isinstance(labels, pd.Series):
+                labels = labels.tolist()
+
+            if isinstance(labels, (list, tuple)):
+                return list(labels)
+
+            if pd.isna(labels):
+                return []
+
+            return [labels]
+
+        if isinstance(data, pd.Series):
+            records = data.tolist()
+        else:
+            records = list(data)
+
+        normalized_records = []
+        for record in records:
+            parsed = _parse_record(record)
+            if parsed is None:
+                continue
+
+            labels, protected_attribute = parsed
+            normalized_records.append((_normalize_labels(labels), protected_attribute))
+
+        if not normalized_records:
+            raise ValueError(
+                "MultiClassDemographicParity expects items as (labels, protected_attribute)."
+            )
+
+        df = pd.DataFrame(normalized_records, columns=["label", "protected_attribute"])
         df = df.explode("label")
+        df = df.dropna(subset=["label", "protected_attribute"])
+
+        if df.empty:
+            raise ValueError(
+                "MultiClassDemographicParity is undefined when no positive labels are present."
+            )
 
         group_counts = (
             df.groupby(["protected_attribute", "label"]).size().unstack(fill_value=0)
@@ -443,7 +518,16 @@ class Resolution(StreamMetric):
         return datapoint[0].shape
 
     def compute(self, data, reference, metric_config):
-        distinct_resolutions = len(Counter(value for value in data))
+        def _to_hashable(value):
+            if isinstance(value, np.ndarray):
+                value = value.tolist()
+            if isinstance(value, (list, tuple)):
+                return tuple(_to_hashable(item) for item in value)
+            if isinstance(value, np.generic):
+                return value.item()
+            return value
+
+        distinct_resolutions = len(Counter(_to_hashable(value) for value in data))
 
         return MetricResult(
             cluster=None,

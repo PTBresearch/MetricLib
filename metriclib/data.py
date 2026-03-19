@@ -8,8 +8,12 @@ _T_co = TypeVar("_T_co", covariant=True)
 
 
 class Dataset(TorchDataset[_T_co]):
-    def __init__(self, name: str = None):
+    def __init__(
+        self, name: str = None, metadata: pd.DataFrame = None, labels: pd.Series = None
+    ):
         self.name = name
+        self.metadata: pd.DataFrame = metadata
+        self.labels: pd.Series = labels
 
     """
     Abstract base class for a custom PyTorch-compatible dataset.
@@ -51,13 +55,20 @@ class Dataset(TorchDataset[_T_co]):
                 - `pd.Series`: Series of labels extracted from the dataset.
                 - `pd.DataFrame`: DataFrame of metadata with one row per sample.
         """
+
+        if self.metadata is not None and self.labels is not None:
+            return self.labels, self.metadata
+
         data = pd.DataFrame(
             [
                 dict({"_label": self[idx][1]}, **self[idx][2])
                 for idx in tqdm(range(len(self)), "Loading dataset")
             ],
         )
-        return pd.Series(data["_label"]), data.drop("_label", axis=1)
+
+        self.metadata = data.drop("_label", axis=1)
+        self.labels = pd.Series(data["_label"])
+        return pd.Series(data["_label"]), self.metadata
 
     def get_metadata(self) -> pd.DataFrame:
         """
