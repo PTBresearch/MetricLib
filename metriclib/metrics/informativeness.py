@@ -1,3 +1,4 @@
+import ast
 import numpy as np
 from scipy.stats import pearsonr
 from sklearn.preprocessing import MultiLabelBinarizer
@@ -48,7 +49,61 @@ class PearsonCorrelation(StreamMetric):
         return (features, data_point[1])
 
     def compute(self, data, reference=None, metric_config=None):
-        features, target = zip(*data)
+        if not metric_config or "feature_columns" not in metric_config:
+            raise ValueError("Metric configuration must include 'feature_columns' key.")
+
+        if data is None or len(data) == 0:
+            raise ValueError("PearsonCorrelation requires non-empty data.")
+
+        def _normalize_record(record):
+            if isinstance(record, str):
+                try:
+                    record = ast.literal_eval(record)
+                except (ValueError, SyntaxError):
+                    return None
+
+            # Cached JSON/dict-like payloads
+            if isinstance(record, dict):
+                if "features" in record and "target" in record:
+                    return record["features"], record["target"]
+                if "label" in record and "metadata" in record:
+                    metadata = record.get("metadata")
+                    if isinstance(metadata, dict):
+                        features = [
+                            metadata.get(feature)
+                            for feature in metric_config["feature_columns"]
+                        ]
+                        return features, record["label"]
+
+            # Native aggregate output: (features, target)
+            if isinstance(record, (tuple, list)) and len(record) == 2:
+                return record[0], record[1]
+
+            # Backward-compatible fallback for cached/raw datapoints:
+            # (x, target, metadata_dict)
+            if isinstance(record, (tuple, list)) and len(record) >= 3:
+                metadata = record[2]
+                if isinstance(metadata, dict):
+                    features = [
+                        metadata.get(feature)
+                        for feature in metric_config["feature_columns"]
+                    ]
+                    return features, record[1]
+
+            return None
+
+        normalized = []
+        for record in data:
+            parsed = _normalize_record(record)
+            if parsed is not None:
+                normalized.append(parsed)
+
+        if not normalized:
+            raise ValueError(
+                "PearsonCorrelation expects records as (features, target) or raw datapoints (x, target, metadata)."
+            )
+
+        features, target = zip(*normalized)
         features = (
             MultiLabelBinarizer()
             .fit_transform([[str(value) for value in row] for row in features])

@@ -304,14 +304,56 @@ def build_label_bar_figure(dataset_dfs, labels) -> go.Figure:
 def build_mosaique_label_figure(
     filtered_metadata, labels, index, category_field, proportion_field, name
 ) -> go.Figure:
-    filtered_metadata = filtered_metadata[index]
-    filtered_metadata["labels"] = labels[index]
-    filtered_metadata["labels"] = filtered_metadata["labels"].apply(
-        lambda x: ["Class " + str(i) for i, v in enumerate(x) if v == 1]
-    )
-    proportion_values = filtered_metadata[proportion_field].unique()
+    metadata_df = filtered_metadata[index].copy()
+
+    label_values = labels[index]
+    label_series = (
+        label_values if isinstance(label_values, pd.Series) else pd.Series(label_values)
+    ).copy()
+
+    def _to_class_list(value):
+        if value is None:
+            return []
+        if isinstance(value, float) and np.isnan(value):
+            return []
+
+        arr = np.asarray(value)
+        if arr.ndim == 0:
+            if isinstance(value, (int, np.integer)):
+                return [f"Class {int(value)}"]
+            if isinstance(value, (float, np.floating)) and not np.isnan(value):
+                return [f"Class {int(value)}"]
+            return []
+
+        flat = arr.reshape(-1)
+        if np.issubdtype(flat.dtype, np.number) and set(np.unique(flat)).issubset(
+            {0, 1}
+        ):
+            return [f"Class {i}" for i, v in enumerate(flat) if v == 1]
+
+        classes = []
+        for item in flat.tolist():
+            if isinstance(item, str):
+                classes.append(item)
+            elif isinstance(item, (int, np.integer)):
+                classes.append(f"Class {int(item)}")
+            elif isinstance(item, (float, np.floating)) and not np.isnan(item):
+                classes.append(f"Class {int(item)}")
+        return classes
+
+    label_series = label_series.apply(_to_class_list).reset_index(drop=True)
+    metadata_df = metadata_df.reset_index(drop=True)
+
+    if len(label_series) != len(metadata_df):
+        min_len = min(len(label_series), len(metadata_df))
+        label_series = label_series.iloc[:min_len]
+        metadata_df = metadata_df.iloc[:min_len].copy()
+
+    metadata_df["labels"] = label_series
+
+    proportion_values = metadata_df[proportion_field].unique()
     for proportion_value in proportion_values:
-        metadata = filtered_metadata
+        metadata = metadata_df
         metadata = metadata.explode(category_field)
         metadata[proportion_field] = metadata[proportion_field] == proportion_value
         class_counts = (

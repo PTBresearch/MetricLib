@@ -89,40 +89,84 @@ class MMD(TabularMetric):
                 "Metric configuration must specify the 'feature_cols' to select comparable features."
             )
 
-        df_selected = data[
-            metric_config.get("feature_cols")
-            + [list(metric_config["groups"].keys())[0]]
-        ].dropna()
+        group_items = list(metric_config["groups"].items())
+        if len(group_items) != 1:
+            raise ValueError("'groups' must contain exactly one grouping column.")
 
-        embedded_data = pd.DataFrame(df_selected.select_dtypes(include=["number"]))
+        group_col, group_values = group_items[0]
+        if not isinstance(group_values, list) or len(group_values) != 2:
+            raise ValueError(
+                "'groups' must map the grouping column to exactly two group values."
+            )
 
-        for col in df_selected.select_dtypes(exclude=["number"]).columns:
-            if col == list(metric_config["groups"].keys())[0]:
+        required_cols = metric_config.get("feature_cols", []) + [group_col]
+        missing_cols = [col for col in required_cols if col not in data.columns]
+        if missing_cols:
+            raise ValueError(
+                f"Columns not found in DataFrame: {', '.join(map(str, missing_cols))}"
+            )
+
+        df_selected = data[required_cols].dropna()
+
+        if df_selected.empty:
+            return MetricResult(
+                description=f"MMD undefined: no non-null rows for comparison on {group_col}",
+                value=None,
+                cluster="Consistency",
+                threshold=None,
+            )
+
+        embedded_data = pd.DataFrame(index=df_selected.index)
+
+        for col in metric_config.get("feature_cols", []):
+            if pd.api.types.is_numeric_dtype(df_selected[col]):
+                embedded_data[col] = pd.to_numeric(df_selected[col], errors="coerce")
                 continue
-            mlb = LabelEncoder()
-            embedded_data[col] = pd.Series(mlb.fit_transform(data[col]))
+
+            encoder = LabelEncoder()
+            embedded_data[col] = encoder.fit_transform(df_selected[col].astype(str))
+
+        embedded_data[group_col] = df_selected[group_col].values
+
+        feature_columns = [col for col in embedded_data.columns if col != group_col]
+        if not feature_columns:
+            return MetricResult(
+                description=f"MMD undefined: no comparable features for {group_col}",
+                value=None,
+                cluster="Consistency",
+                threshold=None,
+            )
 
         # normalize embedded data except group column
-        for col in embedded_data.columns:
-            if (
-                col == list(metric_config["groups"].keys())[0]
-                or embedded_data[col].mean() == 0
-            ):
+        for col in feature_columns:
+            std = embedded_data[col].std()
+            if pd.isna(std) or std == 0:
                 continue
-            embedded_data[col] = (
-                embedded_data[col] - embedded_data[col].mean()
-            ) / embedded_data[col].std()
+            embedded_data[col] = (embedded_data[col] - embedded_data[col].mean()) / std
 
-        embedded_data = embedded_data.groupby(
-            list(metric_config["groups"].keys())[0]
-        ).mean()
+        embedded_data = embedded_data.groupby(group_col).mean(numeric_only=True)
+
+        missing_groups = [
+            value for value in group_values if value not in embedded_data.index
+        ]
+        if missing_groups:
+            return MetricResult(
+                description=(
+                    f"MMD undefined: missing comparison group(s) {missing_groups} for {group_col}"
+                ),
+                value=None,
+                cluster="Consistency",
+                threshold=None,
+            )
+
+        group_a, group_b = group_values
+        distance = np.linalg.norm(
+            embedded_data.loc[group_a] - embedded_data.loc[group_b]
+        )
 
         return MetricResult(
             description=f"MMD",
-            value=np.linalg.norm(
-                embedded_data.loc[list(metric_config["groups"].values())[0][0]]
-                - embedded_data.loc[list(metric_config["groups"].values())[0][1]]
-            ),
+            value=float(distance),
             cluster="Consistency",
             threshold=0.00001,
         )

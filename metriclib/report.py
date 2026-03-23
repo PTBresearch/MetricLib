@@ -1,4 +1,6 @@
 from typing import List, Dict, Any, Optional, TypedDict
+import hashlib
+import json
 from dateutil.parser import parse
 import pandas as pd
 import numpy as np
@@ -408,6 +410,19 @@ class Report:
                 return
             md[metric_key] = value
 
+        def _build_stream_metric_key(metric_class, metric_config) -> str:
+            try:
+                config_payload = json.dumps(
+                    metric_config if metric_config is not None else {},
+                    sort_keys=True,
+                    default=str,
+                )
+            except (TypeError, ValueError):
+                config_payload = repr(metric_config)
+
+            config_hash = hashlib.sha1(config_payload.encode("utf-8")).hexdigest()[:12]
+            return f"{metric_class.__name__}__{config_hash}"
+
         stream_entries: List[Dict[str, Any]] = []
         stream_unique_by_dataset: Dict[int, Dict[str, Dict[str, Any]]] = {}
 
@@ -429,7 +444,7 @@ class Report:
                 continue
 
             if issubclass(metric_class, StreamMetric):
-                metric_key = metric_class.__name__
+                metric_key = _build_stream_metric_key(metric_class, metric_config)
                 stream_entries.append(
                     {
                         "metric_idx": metric_idx,

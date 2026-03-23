@@ -1,6 +1,7 @@
 from collections import Counter
 import ast
 import math
+import re
 import numpy as np
 import pandas as pd
 import torch
@@ -321,16 +322,83 @@ class MultiClassGeneralizedImbalanceRatio(StreamMetric):
         return data_point[1]
 
     def compute(self, data, reference, metric_config):
-        counts = np.sum(np.array(data), axis=0)
-        min_count = min(counts)
+        print(data)
+
+        def _parse_single_class(value):
+            if value is None or (isinstance(value, float) and np.isnan(value)):
+                return []
+
+            if isinstance(value, str):
+                stripped = value.strip()
+                try:
+                    parsed = ast.literal_eval(stripped)
+                    if parsed is value:
+                        parsed = stripped
+                    value = parsed
+                except (ValueError, SyntaxError):
+                    match = re.search(r"-?\d+", stripped)
+                    if match:
+                        return [int(match.group())]
+                    return []
+
+            if isinstance(value, np.ndarray):
+                value = value.tolist()
+            elif isinstance(value, pd.Series):
+                value = value.tolist()
+
+            if isinstance(value, (list, tuple)):
+                if len(value) == 0:
+                    return []
+
+                if all(
+                    isinstance(v, (int, float, np.integer, np.floating)) for v in value
+                ):
+                    numeric = np.asarray(value, dtype=float)
+                    if numeric.ndim == 1 and set(np.unique(numeric)).issubset(
+                        {0.0, 1.0}
+                    ):
+                        return np.where(numeric == 1.0)[0].astype(int).tolist()
+                    return [int(v) for v in numeric.tolist() if not np.isnan(v)]
+
+                parsed_classes = []
+                for item in value:
+                    parsed_classes.extend(_parse_single_class(item))
+                return parsed_classes
+
+            if isinstance(value, (int, np.integer)):
+                return [int(value)]
+
+            if isinstance(value, (float, np.floating)):
+                if np.isnan(value):
+                    return []
+                return [int(value)]
+
+            return []
+
+        if isinstance(data, pd.Series):
+            records = data.tolist()
+        else:
+            records = list(data)
+
+        classes = []
+        for record in records:
+            classes.extend(_parse_single_class(record))
+
+        if len(classes) == 0:
+            raise ValueError(
+                "MultiClassGeneralizedImbalanceRatio requires parseable class labels."
+            )
+
+        counts = pd.Series(classes).value_counts()
+        min_count = counts.min()
         if min_count == 0:
             raise ValueError(
                 "MultiClassGeneralizedImbalanceRatio is undefined when min class count is 0."
             )
-        value = max(counts) / min_count
+        value = counts.max() / min_count
         return MetricResult(
             description="MultiClass Generalized Imbalance Ratio",
-            value=value,
+            value=float(value),
             cluster="Representativeness",
             threshold=0.0,
         )
