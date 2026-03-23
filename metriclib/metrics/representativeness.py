@@ -167,7 +167,6 @@ class HillNumbers(TabularMetric):
         return MetricResult(
             description=f"Hill Numbers q={q} for {col}",
             value=value,
-            cluster="Representativeness",
             threshold=len(types),
         )
 
@@ -322,11 +321,16 @@ class MultiClassGeneralizedImbalanceRatio(StreamMetric):
         return data_point[1]
 
     def compute(self, data, reference, metric_config):
-        print(data)
-
         def _parse_single_class(value):
             if value is None or (isinstance(value, float) and np.isnan(value)):
                 return []
+
+            if isinstance(value, torch.Tensor):
+                value = value.detach().cpu()
+                if value.ndim == 0:
+                    value = value.item()
+                else:
+                    value = value.tolist()
 
             if isinstance(value, str):
                 stripped = value.strip()
@@ -395,12 +399,11 @@ class MultiClassGeneralizedImbalanceRatio(StreamMetric):
             raise ValueError(
                 "MultiClassGeneralizedImbalanceRatio is undefined when min class count is 0."
             )
-        value = counts.max() / min_count
+        value = 1 / (counts.max() / min_count)
         return MetricResult(
             description="MultiClass Generalized Imbalance Ratio",
             value=float(value),
-            cluster="Representativeness",
-            threshold=0.0,
+            threshold=1.0,
         )
 
 
@@ -415,12 +418,12 @@ class MultiLabelGeneralizedImbalanceRatio(StreamMetric):
             raise ValueError(
                 "MultiLabelGeneralizedImbalanceRatio is undefined when min label count is 0."
             )
-        value = max(counts) / min_count
+        value = 1 / (max(counts) / min_count)
         return MetricResult(
             description="MultiLabel Generalized Imbalance Ratio",
             value=value,
             cluster="Representativeness",
-            threshold=0.0,
+            threshold=0.5,
         )
 
 
@@ -517,7 +520,7 @@ class MultiClassDemographicParity(StreamMetric):
         group_mins = group_counts.min(axis=0)
         group_maxs = group_counts.max(axis=0)
 
-        value = group_maxs.div(group_mins).max()
+        value = 1.0 / group_maxs.div(group_mins).max()
 
         if value == float("inf"):
             raise ValueError(
@@ -525,10 +528,10 @@ class MultiClassDemographicParity(StreamMetric):
             )
 
         return MetricResult(
-            description="Mean Multilabel Demographic Parity Ratio",
+            description="Mean Multiclass Demographic Parity Ratio",
             value=value,
             cluster="Representativeness",
-            threshold=1.0,
+            threshold=0.3,
         )
 
 
@@ -571,13 +574,12 @@ class MultiLabelDemographicParity(StreamMetric):
                 "MultiLabelDemographicParity is undefined when any group has 0 samples for a label."
             )
 
-        value = group_maxs.div(group_mins).max()
+        value = 1.0 / group_maxs.div(group_mins).max()
 
         return MetricResult(
             description="Mean Multilabel Demographic Parity Ratio",
             value=value,
-            cluster="Representativeness",
-            threshold=1.0,
+            threshold=0.5,
         )
 
 
@@ -599,7 +601,6 @@ class Resolution(StreamMetric):
 
         return MetricResult(
             cluster=None,
-            threshold=0,
             description="Number of distinct resolutions in the dataset",
             value=distinct_resolutions,
         )
@@ -609,7 +610,6 @@ class DatasetSize(TabularMetric):
     def compute(self, data, reference=None, metric_config=None):
         return MetricResult(
             cluster=None,
-            threshold=0,
             description="Dataset size (number of samples)",
             value=len(data),
         )

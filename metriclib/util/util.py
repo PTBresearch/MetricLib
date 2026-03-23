@@ -1,6 +1,7 @@
 import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
+import torch
 from typing import List, Dict, Optional, Union, Any
 
 COLORS = [
@@ -9,6 +10,42 @@ COLORS = [
     "#1E90FF",
     "#FFD700",
 ]
+
+
+def _tensor_labels_to_class_series(label_values) -> pd.Series:
+    if not isinstance(label_values, list):
+        raise TypeError("Label figures expect a list of torch.Tensor labels.")
+
+    class_lists = []
+    for row in label_values:
+        if not isinstance(row, torch.Tensor):
+            raise TypeError("Label figures expect a list of torch.Tensor labels.")
+
+        flattened = row.detach().cpu().reshape(-1)
+
+        if flattened.numel() == 0:
+            class_lists.append([])
+            continue
+
+        if torch.is_floating_point(flattened):
+            flattened = flattened[~torch.isnan(flattened)]
+
+        if flattened.numel() == 0:
+            class_lists.append([])
+            continue
+
+        unique_values = torch.unique(flattened)
+        if all(value.item() in {0, 1} for value in unique_values):
+            class_lists.append(
+                [f"Class {index}" for index in torch.where(flattened == 1)[0].tolist()]
+            )
+            continue
+
+        class_lists.append(
+            [f"Class {value}" for value in flattened.to(torch.int64).tolist()]
+        )
+
+    return pd.Series(class_lists)
 
 
 def add_bar(
@@ -234,36 +271,18 @@ def add_bar(
 def build_label_bar_figure(dataset_dfs, labels) -> go.Figure:
     """Build a label bar chart equivalent to categorical_bar_chart.
 
-    Labels are expected to be array-like multi-hot vectors and are exploded to
-    class names (e.g. "Class 0", "Class 1") before counting.
+    Labels are expected to be lists of torch tensors and are exploded to class
+    names (e.g. "Class 0", "Class 1") before counting.
     """
     figure = go.Figure(data=[])
     prepared = []
     all_keys = set()
 
-    def _to_class_list(value):
-        if value is None:
-            return []
-        if isinstance(value, float) and np.isnan(value):
-            return []
-
-        arr = np.asarray(value)
-        if arr.ndim == 0:
-            return []
-
-        return [f"Class {i}" for i, v in enumerate(arr) if v == 1]
-
     for i, _ in enumerate(dataset_dfs):
         if i >= len(labels):
             continue
 
-        label_values = labels[i]
-        label_series = (
-            label_values
-            if isinstance(label_values, pd.Series)
-            else pd.Series(label_values)
-        ).copy()
-        label_series = label_series.apply(_to_class_list)
+        label_series = _tensor_labels_to_class_series(labels[i])
 
         values = label_series.explode().dropna()
         filtered_values = values
@@ -306,42 +325,7 @@ def build_mosaique_label_figure(
 ) -> go.Figure:
     metadata_df = filtered_metadata[index].copy()
 
-    label_values = labels[index]
-    label_series = (
-        label_values if isinstance(label_values, pd.Series) else pd.Series(label_values)
-    ).copy()
-
-    def _to_class_list(value):
-        if value is None:
-            return []
-        if isinstance(value, float) and np.isnan(value):
-            return []
-
-        arr = np.asarray(value)
-        if arr.ndim == 0:
-            if isinstance(value, (int, np.integer)):
-                return [f"Class {int(value)}"]
-            if isinstance(value, (float, np.floating)) and not np.isnan(value):
-                return [f"Class {int(value)}"]
-            return []
-
-        flat = arr.reshape(-1)
-        if np.issubdtype(flat.dtype, np.number) and set(np.unique(flat)).issubset(
-            {0, 1}
-        ):
-            return [f"Class {i}" for i, v in enumerate(flat) if v == 1]
-
-        classes = []
-        for item in flat.tolist():
-            if isinstance(item, str):
-                classes.append(item)
-            elif isinstance(item, (int, np.integer)):
-                classes.append(f"Class {int(item)}")
-            elif isinstance(item, (float, np.floating)) and not np.isnan(item):
-                classes.append(f"Class {int(item)}")
-        return classes
-
-    label_series = label_series.apply(_to_class_list).reset_index(drop=True)
+    label_series = _tensor_labels_to_class_series(labels[index]).reset_index(drop=True)
     metadata_df = metadata_df.reset_index(drop=True)
 
     if len(label_series) != len(metadata_df):

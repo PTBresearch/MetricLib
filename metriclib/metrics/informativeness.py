@@ -1,5 +1,7 @@
 import ast
 import numpy as np
+import pandas as pd
+import torch
 from scipy.stats import pearsonr
 from sklearn.preprocessing import MultiLabelBinarizer
 
@@ -55,6 +57,88 @@ class PearsonCorrelation(StreamMetric):
         if data is None or len(data) == 0:
             raise ValueError("PearsonCorrelation requires non-empty data.")
 
+        def _parse_tensor_string(value: str):
+            stripped = value.strip()
+            if not (stripped.startswith("tensor(") and stripped.endswith(")")):
+                return value
+
+            inner = stripped[len("tensor(") : -1]
+            try:
+                return ast.literal_eval(inner)
+            except (ValueError, SyntaxError):
+                return value
+
+        def _normalize_input_records(data):
+            if isinstance(data, pd.Series):
+                return data.tolist()
+            if isinstance(data, pd.DataFrame):
+                if set(data.columns) >= {"features", "target"}:
+                    return list(
+                        data[["features", "target"]].itertuples(index=False, name=None)
+                    )
+                if data.shape[1] == 1:
+                    return data.iloc[:, 0].tolist()
+                return data.to_dict("records")
+            return list(data)
+
+        def _normalize_numeric_target(value):
+            if isinstance(value, str):
+                value = _parse_tensor_string(value)
+                try:
+                    value = ast.literal_eval(value)
+                except (ValueError, SyntaxError):
+                    pass
+
+            if isinstance(value, torch.Tensor):
+                value = value.detach().cpu()
+                if value.ndim == 0:
+                    return float(value.item())
+                value = value.reshape(-1).tolist()
+            elif isinstance(value, np.ndarray):
+                if value.ndim == 0:
+                    return float(value.item())
+                value = value.reshape(-1).tolist()
+            elif isinstance(value, pd.Series):
+                value = value.tolist()
+
+            if isinstance(value, (list, tuple)):
+                normalized_values = []
+                for item in value:
+                    if isinstance(item, torch.Tensor):
+                        item = item.detach().cpu()
+                        if item.ndim == 0:
+                            item = item.item()
+                        else:
+                            normalized_values.extend(item.reshape(-1).tolist())
+                            continue
+                    if isinstance(item, np.ndarray):
+                        if item.ndim == 0:
+                            item = item.item()
+                        else:
+                            normalized_values.extend(item.reshape(-1).tolist())
+                            continue
+                    if isinstance(item, str):
+                        item = _parse_tensor_string(item)
+                        try:
+                            item = ast.literal_eval(item)
+                        except (ValueError, SyntaxError):
+                            pass
+                    if isinstance(item, (list, tuple)):
+                        normalized_values.extend(_normalize_numeric_target(item))
+                        continue
+                    if item is None or pd.isna(item):
+                        continue
+                    normalized_values.append(float(item))
+
+                if len(normalized_values) == 1:
+                    return normalized_values[0]
+                return normalized_values
+
+            if value is None or pd.isna(value):
+                return []
+
+            return float(value)
+
         def _normalize_record(record):
             if isinstance(record, str):
                 try:
@@ -62,10 +146,15 @@ class PearsonCorrelation(StreamMetric):
                 except (ValueError, SyntaxError):
                     return None
 
+            if isinstance(record, pd.Series):
+                record = record.tolist()
+
             # Cached JSON/dict-like payloads
             if isinstance(record, dict):
                 if "features" in record and "target" in record:
-                    return record["features"], record["target"]
+                    return record["features"], _normalize_numeric_target(
+                        record["target"]
+                    )
                 if "label" in record and "metadata" in record:
                     metadata = record.get("metadata")
                     if isinstance(metadata, dict):
@@ -73,11 +162,11 @@ class PearsonCorrelation(StreamMetric):
                             metadata.get(feature)
                             for feature in metric_config["feature_columns"]
                         ]
-                        return features, record["label"]
+                        return features, _normalize_numeric_target(record["label"])
 
             # Native aggregate output: (features, target)
             if isinstance(record, (tuple, list)) and len(record) == 2:
-                return record[0], record[1]
+                return record[0], _normalize_numeric_target(record[1])
 
             # Backward-compatible fallback for cached/raw datapoints:
             # (x, target, metadata_dict)
@@ -88,12 +177,13 @@ class PearsonCorrelation(StreamMetric):
                         metadata.get(feature)
                         for feature in metric_config["feature_columns"]
                     ]
-                    return features, record[1]
+                    return features, _normalize_numeric_target(record[1])
 
             return None
 
+        records = _normalize_input_records(data)
         normalized = []
-        for record in data:
+        for record in records:
             parsed = _normalize_record(record)
             if parsed is not None:
                 normalized.append(parsed)

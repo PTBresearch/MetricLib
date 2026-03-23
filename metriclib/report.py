@@ -281,11 +281,11 @@ class Report:
         for _ in datasets:
             self.scores.append(
                 {
-                    "Measurement Process": 0,
-                    "Timeliness": 0,
-                    "Representativeness": 0,
-                    "Informativeness": 0,
-                    "Consistency": 0,
+                    "Measurement Process": 1.0,
+                    "Timeliness": 1.0,
+                    "Representativeness": 1.0,
+                    "Informativeness": 1.0,
+                    "Consistency": 1.0,
                 }
             )
 
@@ -367,12 +367,12 @@ class Report:
             )
 
         def _update_score(dataset_index: int, result: MetricResult) -> None:
-            if result.cluster and result.threshold:
-                deviation = (
-                    1 + min(result.value - result.threshold, 0) / result.threshold
-                )
-                if self.scores[dataset_index][result.cluster] < deviation:
-                    self.scores[dataset_index][result.cluster] = deviation
+            if result.cluster and result.threshold is not None and result.threshold > 0:
+                if result.cluster == "Representativeness":
+                    print(result)
+                metric_score = min(result.value / result.threshold, 1.0)
+                if self.scores[dataset_index][result.cluster] > metric_score:
+                    self.scores[dataset_index][result.cluster] = metric_score
 
         def _has_cached_stream_result(dataset: Dataset, metric_key: str) -> bool:
             md = getattr(dataset, "metadata", None)
