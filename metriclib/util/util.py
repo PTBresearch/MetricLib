@@ -2,6 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
 import torch
+from plotly.subplots import make_subplots
 from typing import List, Dict, Optional, Union, Any
 
 COLORS = [
@@ -9,6 +10,14 @@ COLORS = [
     "#008080",
     "#1E90FF",
     "#FFD700",
+]
+
+HEATMAP_COLORSCALE = [
+    [0.0, "#008080"],
+    [0.25, "#2A4A4A"],
+    [0.5, "#111111"],
+    [0.75, "#4A2A2A"],
+    [1.0, "#FF6347"],
 ]
 
 
@@ -318,6 +327,192 @@ def build_label_bar_figure(dataset_dfs, labels) -> go.Figure:
         )
 
     return figure
+
+
+def build_label_heatmap_figure(
+    dataset_dfs: List[pd.DataFrame],
+    labels: List[list],
+    fields: List[str],
+) -> go.Figure:
+    """Build a single heatmap figure showing field-label correlation for all datasets.
+
+    Each dataset gets its own subplot (stacked vertically). Rows are the metadata
+    fields, columns are label classes.
+
+    Returns a single Plotly Figure.
+    """
+
+    def _is_scalar_column(series: pd.Series) -> bool:
+        sample = series.dropna().head(50)
+        return not sample.apply(
+            lambda v: isinstance(v, (list, tuple, dict, torch.Tensor, np.ndarray))
+        ).any()
+
+    # Pre-compute per-dataset data
+    dataset_results = []
+    for i, df in enumerate(dataset_dfs):
+        if i >= len(labels):
+            dataset_results.append(None)
+            continue
+
+        raw_labels = labels[i]
+        if isinstance(raw_labels, torch.Tensor):
+            raw_labels = list(raw_labels)
+        elif isinstance(raw_labels, pd.Series):
+            raw_labels = raw_labels.tolist()
+
+        label_series = _tensor_labels_to_class_series(raw_labels).reset_index(drop=True)
+        meta = df.reset_index(drop=True)
+
+        if len(label_series) != len(meta):
+            min_len = min(len(label_series), len(meta))
+            label_series = label_series.iloc[:min_len]
+            meta = meta.iloc[:min_len].copy()
+
+        label_dummies = label_series.explode().str.strip().to_frame("class")
+        label_dummies["_idx"] = label_dummies.index
+        label_dummies = label_dummies.dropna(subset=["class"])
+        label_dummies = label_dummies[label_dummies["class"] != ""]
+        class_names = sorted(label_dummies["class"].unique(), key=lambda k: str(k))
+
+        if not class_names:
+            dataset_results.append(None)
+            continue
+
+        indicator_df = pd.DataFrame(0, index=meta.index, columns=class_names)
+        for cls in class_names:
+            rows_with_cls = label_dummies.loc[
+                label_dummies["class"] == cls, "_idx"
+            ].unique()
+            indicator_df.loc[indicator_df.index.isin(rows_with_cls), cls] = 1
+
+        valid_fields = [f for f in fields if f in meta.columns] if fields else []
+        if not valid_fields:
+            for c in meta.columns:
+                try:
+                    if not _is_scalar_column(meta[c]):
+                        continue
+                    if pd.to_numeric(meta[c], errors="coerce").notna().mean() >= 0.5:
+                        valid_fields.append(c)
+                except (TypeError, ValueError):
+                    continue
+
+        if not valid_fields:
+            dataset_results.append(None)
+            continue
+
+        field_values = pd.DataFrame(index=meta.index)
+        usable_fields = []
+        for f in valid_fields:
+            col = meta[f]
+            try:
+                if not _is_scalar_column(col):
+                    continue
+                numeric_col = pd.to_numeric(col, errors="coerce")
+                if numeric_col.notna().sum() / max(len(numeric_col), 1) >= 0.5:
+                    field_values[f] = numeric_col
+                else:
+                    field_values[f] = col.astype("category").cat.codes.replace(
+                        -1, np.nan
+                    )
+                usable_fields.append(f)
+            except (TypeError, ValueError):
+                continue
+        valid_fields = usable_fields
+
+        if not valid_fields:
+            dataset_results.append(None)
+            continue
+
+        corr_matrix = np.full((len(valid_fields), len(class_names)), np.nan)
+        for fi, f in enumerate(valid_fields):
+            fv = field_values[f]
+            mask = fv.notna()
+            if mask.sum() < 3:
+                continue
+            for ci, cls in enumerate(class_names):
+                iv = indicator_df[cls].loc[mask].astype(float)
+                fv_clean = fv.loc[mask].astype(float)
+                if iv.std() == 0 or fv_clean.std() == 0:
+                    corr_matrix[fi, ci] = 0.0
+                else:
+                    corr_matrix[fi, ci] = np.corrcoef(fv_clean, iv)[0, 1]
+
+        text_matrix = np.where(
+            np.isnan(corr_matrix), "", np.char.mod("%.2f", corr_matrix)
+        )
+
+        dataset_results.append(
+            {
+                "class_names": class_names,
+                "valid_fields": valid_fields,
+                "corr_matrix": corr_matrix,
+                "text_matrix": text_matrix,
+            }
+        )
+
+    valid_results = [(i, r) for i, r in enumerate(dataset_results) if r is not None]
+
+    if not valid_results:
+        return go.Figure()
+
+    n_subplots = len(valid_results)
+    subplot_titles = [f"Dataset {i + 1}" for i, _ in valid_results]
+    fig = make_subplots(
+        rows=n_subplots,
+        cols=1,
+        subplot_titles=subplot_titles,
+        vertical_spacing=0.15 / max(n_subplots, 1),
+    )
+
+    for row_idx, (ds_idx, result) in enumerate(valid_results, start=1):
+        show_colorbar = row_idx == 1
+        fig.add_trace(
+            go.Heatmap(
+                z=result["corr_matrix"],
+                x=[str(c) for c in result["class_names"]],
+                y=result["valid_fields"],
+                text=result["text_matrix"],
+                texttemplate="%{text}",
+                textfont=dict(color="white"),
+                colorscale=HEATMAP_COLORSCALE,
+                zmid=0,
+                zmin=-1,
+                zmax=1,
+                showscale=show_colorbar,
+                colorbar=(
+                    dict(
+                        title=dict(text="Correlation", font=dict(color="white")),
+                        tickfont=dict(color="white"),
+                    )
+                    if show_colorbar
+                    else None
+                ),
+            ),
+            row=row_idx,
+            col=1,
+        )
+        fig.update_yaxes(
+            autorange="reversed", color="white", linecolor="#333", row=row_idx, col=1
+        )
+        fig.update_xaxes(color="white", linecolor="#333", row=row_idx, col=1)
+
+    # Label bottom x-axis only
+    fig.update_xaxes(title_text="Label Class", row=n_subplots, col=1)
+
+    fig.update_layout(
+        plot_bgcolor="black",
+        paper_bgcolor="black",
+        font=dict(color="white"),
+        margin=dict(l=80, r=40, t=60, b=60),
+        height=max(300 * n_subplots, 400),
+    )
+
+    # Style subplot titles white
+    for annotation in fig["layout"]["annotations"]:
+        annotation["font"] = dict(color="white")
+
+    return fig
 
 
 def build_mosaique_label_figure(

@@ -1,13 +1,16 @@
 from typing import List, Dict, Any, Optional, TypedDict
-import hashlib
-import json
 from dateutil.parser import parse
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
 
-from .util.util import add_bar, build_label_bar_figure, build_mosaique_label_figure
+from .util.util import (
+    add_bar,
+    build_label_bar_figure,
+    build_label_heatmap_figure,
+    build_mosaique_label_figure,
+)
 
 from .data import Dataset
 from .metric import StreamMetric, TabularMetric, MetricResult
@@ -213,7 +216,6 @@ class Report:
             else:
                 filtered_values = values
 
-            # Robust date handling: use dateutil.parse for string dates
             is_dt_dtype = pd.api.types.is_datetime64_any_dtype(
                 values
             ) or pd.api.types.is_datetime64tz_dtype(values)
@@ -368,8 +370,6 @@ class Report:
 
         def _update_score(dataset_index: int, result: MetricResult) -> None:
             if result.cluster and result.threshold is not None and result.threshold > 0:
-                if result.cluster == "Representativeness":
-                    print(result)
                 metric_score = min(result.value / result.threshold, 1.0)
                 if self.scores[dataset_index][result.cluster] > metric_score:
                     self.scores[dataset_index][result.cluster] = metric_score
@@ -410,18 +410,10 @@ class Report:
                 return
             md[metric_key] = value
 
-        def _build_stream_metric_key(metric_class, metric_config) -> str:
-            try:
-                config_payload = json.dumps(
-                    metric_config if metric_config is not None else {},
-                    sort_keys=True,
-                    default=str,
-                )
-            except (TypeError, ValueError):
-                config_payload = repr(metric_config)
-
-            config_hash = hashlib.sha1(config_payload.encode("utf-8")).hexdigest()[:12]
-            return f"{metric_class.__name__}__{config_hash}"
+        def _build_stream_metric_key(metric_class, metric_config, name=None) -> str:
+            if name is not None:
+                return name
+            return metric_class.__name__
 
         stream_entries: List[Dict[str, Any]] = []
         stream_unique_by_dataset: Dict[int, Dict[str, Dict[str, Any]]] = {}
@@ -444,7 +436,9 @@ class Report:
                 continue
 
             if issubclass(metric_class, StreamMetric):
-                metric_key = _build_stream_metric_key(metric_class, metric_config)
+                metric_key = _build_stream_metric_key(
+                    metric_class, metric_config, metric_info.get("name")
+                )
                 stream_entries.append(
                     {
                         "metric_idx": metric_idx,
@@ -573,6 +567,16 @@ class Report:
                     dataset_dfs=dataset_dfs,
                     labels=labels,
                     chart_config=chart_config,
+                )
+                self.charts[name]["figure"] = figure
+            elif chart_type == "label_heatmap":
+                heatmap_fields = chart_config.get("fields", [])
+                if not heatmap_fields and chart_config.get("field"):
+                    heatmap_fields = [chart_config["field"]]
+                figure = build_label_heatmap_figure(
+                    dataset_dfs=dataset_dfs,
+                    labels=labels,
+                    fields=heatmap_fields,
                 )
                 self.charts[name]["figure"] = figure
             else:
