@@ -1,9 +1,12 @@
 import numpy as np
+import torch
 import antropy as ant
 import SimpleITK as sitk
 from scipy.ndimage import binary_erosion
+from scipy.spatial import cKDTree
 from ..metric import MetricResult, StreamMetric, TabularMetric
 
+import ast
 
 class LimitofQuantification(StreamMetric):
     def aggregate(self, datapoint, reference=None, metric_config=None):
@@ -99,20 +102,54 @@ class DICESimilarityCoefficient(StreamMetric):
     """
     Computes de DSC between two segmentations.
     Needs to have two segmentation files in NIFTI format.
-    In the dataset : segmentations are loaded with sitk.ReadImage(segmentation_path).
+    In the dataset : segmentations are loaded with sitk.GetArrayFromImage(sitk.ReadImage(segmentation_path)).
     """
 
     def aggregate(self, datapoint, reference=None, metric_config=None):
-        if not isinstance(datapoint[1], tuple):
-            raise ValueError(
-                "Two segmentations (in a tuple) are required to compute this metric."
-            )
-        if not isinstance(datapoint[1][0], sitk.SimpleITK.Image) or not isinstance(
-            datapoint[1][1], sitk.SimpleITK.Image
-        ):
-            raise ValueError("Segmentations must be sitk.SimpleITK.Image format.")
+        """
+        Requieres : 
+        - segmentations images in a tensor (datapoint[1])
+        - metric_config to have ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'] keys.
+        This keys are used to map the requiered information about segmentations to the right columns in the metadata file. 
+        Therefore, we need specific information about images in the metadata file. It is accessible with simpleITK : 
+            img_seg1 = sitk.ReadImage(seg1_path)
+            seg1_origin = img_seg1.GetOrigin()
+            seg1_spacing = img_seg1.GetSpacing()
+            seg1_direction = img_seg1.GetDirection()
+        
+        Raises :
+            ValueError : if "datapoint[1]" is not a torch.tensor
+            ValueError : if len(datapoint[1]) != 2 : datapoint[1] must contains seg1 and seg2
+            ValueError : if ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'] not in metric_config.keys() : metric_config must contains those keys
+        Args:
+            datapoint : 
+                datapoint[1] : torch.tensor([seg1,seg2]) ; 
+            reference : None.
+            metric_config (example): {'seg1_origin' : 'col1', 'seg1_spacing':'col2', 'seg1_direction':'col3','seg2_origin' : 'col4', 'seg2_spacing':'col5', 'seg2_direction':'col6'}.
+        """
+        if not torch.is_tensor(datapoint[1]):
+            raise ValueError("Data must be structured in a torch.tensor.")
+        if len(datapoint[1]) != 2 :
+            raise ValueError("Tensor must contains : segmentation 1 (array), segmentation 2 (array)")
+        if metric_config["seg1_origin"] is None or metric_config["seg1_spacing"] is None or metric_config["seg1_direction"] is None or \
+           metric_config["seg2_origin"] is None or metric_config["seg2_spacing"] is None or metric_config["seg2_direction"] is None :
+            raise ValueError("metric_config must include the following keys : ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'].")
+        
         overlap = sitk.LabelOverlapMeasuresImageFilter()
-        overlap.Execute(datapoint[1][0], datapoint[1][1])
+        
+        seg1_img = sitk.GetImageFromArray(datapoint[1][0])
+        # rebuild segmentation specifications
+        seg1_img.SetOrigin(ast.literal_eval(datapoint[2][str(metric_config["seg1_origin"])])) # origin
+        seg1_img.SetSpacing(ast.literal_eval(datapoint[2][str(metric_config["seg1_spacing"])])) # spacing
+        seg1_img.SetDirection(ast.literal_eval(datapoint[2][str(metric_config["seg1_direction"])])) # direction
+
+        seg2_img = sitk.GetImageFromArray(datapoint[1][1])
+        # rebuild segmentation specifications
+        seg2_img.SetOrigin(ast.literal_eval(datapoint[2][str(metric_config["seg2_origin"])])) # origin
+        seg2_img.SetSpacing(ast.literal_eval(datapoint[2][str(metric_config["seg2_spacing"])])) # spacing
+        seg2_img.SetDirection(ast.literal_eval(datapoint[2][str(metric_config["seg2_direction"])])) # direction
+
+        overlap.Execute(seg1_img, seg2_img)
         dice = overlap.GetDiceCoefficient()
         return dice
 
@@ -130,20 +167,54 @@ class IntersectionOverUnion(StreamMetric):
     """
     Computes de Intersection over Union score between two segmentations.
     Needs to have two segmentation files in NIFTI format.
-    In the dataset : segmentations are loaded with sitk.ReadImage(segmentation_path).
+    In the dataset : segmentations are loaded with sitk.GetArrayFromImage(sitk.ReadImage(segmentation_path)).
     """
 
     def aggregate(self, datapoint, reference=None, metric_config=None):
-        if not isinstance(datapoint[1], tuple):
-            raise ValueError(
-                "Two segmentations (in a tuple) are required to compute this metric."
-            )
-        if not isinstance(datapoint[1][0], sitk.SimpleITK.Image) or not isinstance(
-            datapoint[1][1], sitk.SimpleITK.Image
-        ):
-            raise ValueError("Segmentations must be sitk.SimpleITK.Image format.")
+        """
+        Requieres : 
+        - segmentations images in a tensor (datapoint[1])
+        - metric_config to have ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'] keys.
+        This keys are used to map the requiered information about segmentations to the right columns in the metadata file. 
+        Therefore, we need specific information about images in the metadata file. It is accessible with simpleITK : 
+            img_seg1 = sitk.ReadImage(seg1_path)
+            seg1_origin = img_seg1.GetOrigin()
+            seg1_spacing = img_seg1.GetSpacing()
+            seg1_direction = img_seg1.GetDirection()
+        
+        Raises :
+            ValueError : if "datapoint[1]" is not a torch.tensor
+            ValueError : if len(datapoint[1]) != 2 : datapoint[1] must contains seg1 and seg2
+            ValueError : if ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'] not in metric_config.keys() : metric_config must contains those keys
+        Args:
+            datapoint : 
+                datapoint[1] : torch.tensor([seg1,seg2]) ; 
+            reference : None.
+            metric_config (example): {'seg1_origin' : 'col1', 'seg1_spacing':'col2', 'seg1_direction':'col3','seg2_origin' : 'col4', 'seg2_spacing':'col5', 'seg2_direction':'col6'}.
+        """
+        if not torch.is_tensor(datapoint[1]):
+            raise ValueError("Data must be structured in a torch.tensor.")
+        if len(datapoint[1]) != 2 :
+            raise ValueError("Tensor must contains : segmentation 1 (array), segmentation 2 (array)")
+        if metric_config["seg1_origin"] is None or metric_config["seg1_spacing"] is None or metric_config["seg1_direction"] is None or \
+           metric_config["seg2_origin"] is None or metric_config["seg2_spacing"] is None or metric_config["seg2_direction"] is None :
+            raise ValueError("metric_config must include the following keys : ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'].")
+        
         overlap = sitk.LabelOverlapMeasuresImageFilter()
-        overlap.Execute(datapoint[1][0], datapoint[1][1])
+        
+        seg1_img = sitk.GetImageFromArray(datapoint[1][0])
+        # rebuild segmentation specifications
+        seg1_img.SetOrigin(ast.literal_eval(datapoint[2][str(metric_config["seg1_origin"])])) # origin
+        seg1_img.SetSpacing(ast.literal_eval(datapoint[2][str(metric_config["seg1_spacing"])])) # spacing
+        seg1_img.SetDirection(ast.literal_eval(datapoint[2][str(metric_config["seg1_direction"])])) # direction
+
+        seg2_img = sitk.GetImageFromArray(datapoint[1][1])
+        # rebuild segmentation specifications
+        seg2_img.SetOrigin(ast.literal_eval(datapoint[2][str(metric_config["seg2_origin"])])) # origin
+        seg2_img.SetSpacing(ast.literal_eval(datapoint[2][str(metric_config["seg2_spacing"])])) # spacing
+        seg2_img.SetDirection(ast.literal_eval(datapoint[2][str(metric_config["seg2_direction"])])) # direction
+
+        overlap.Execute(seg1_img, seg2_img)
         iou = overlap.GetJaccardCoefficient()
         return iou
 
@@ -161,7 +232,7 @@ class HausdorffDistance(StreamMetric):
     """
     Computes de Hausdorff Distance (in mm) between two segmentations.
     Needs to have two segmentation files in NIFTI format.
-    In the dataset : segmentations are loaded with sitk.ReadImage(segmentation_path).
+    In the dataset : segmentations are loaded with sitk.GetArrayFromImage(sitk.ReadImage(segmentation_path)).
     """
 
     def _mask_to_surface_indices(self, mask_np):
@@ -227,15 +298,15 @@ class HausdorffDistance(StreamMetric):
         return dists_seg2_to_seg1, dists_seg1_to_seg2
 
     def _getHD(self, seg1, seg2):
-        """
-        Compute Hausdorff Distance (in mm) between two segmentations
+        """ 
+        Compute Hausdorff Distance (in mm) between two segmentations.
 
         Args:
             seg1 (sitk Image): first segmentation
             seg2 (sitk Image): second segmentation
 
         Returns:
-            float: Hausdorff Distance : [0;1]
+            float: Hausdorff Distance
         """
         dists_seg2_to_seg1, dists_seg1_to_seg2 = self._get_distances(seg1, seg2)
         hd_max = max(dists_seg2_to_seg1.max(), dists_seg1_to_seg2.max())
@@ -243,16 +314,50 @@ class HausdorffDistance(StreamMetric):
         return hd_max
 
     def aggregate(self, datapoint, reference=None, metric_config=None):
-        if not isinstance(datapoint[1], tuple):
-            raise ValueError(
-                "Two segmentations (in a tuple) are required to compute this metric."
-            )
-        if not isinstance(datapoint[1][0], sitk.SimpleITK.Image) or not isinstance(
-            datapoint[1][1], sitk.SimpleITK.Image
-        ):
-            raise ValueError("Segmentations must be sitk.SimpleITK.Image format.")
-        hd = self._getHD(datapoint[1][0], datapoint[1][1])
-        return hd
+        """
+        Requieres : 
+        - segmentations images in a tensor (datapoint[1])
+        - metric_config to have ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'] keys.
+        This keys are used to map the requiered information about segmentations to the right columns in the metadata file. 
+        Therefore, we need specific information about images in the metadata file. It is accessible with simpleITK : 
+            img_seg1 = sitk.ReadImage(seg1_path)
+            seg1_origin = img_seg1.GetOrigin()
+            seg1_spacing = img_seg1.GetSpacing()
+            seg1_direction = img_seg1.GetDirection()
+        
+        Raises :
+            ValueError : if "datapoint[1]" is not a torch.tensor
+            ValueError : if len(datapoint[1]) != 2 : datapoint[1] must contains seg1 and seg2
+            ValueError : if ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'] not in metric_config.keys() : metric_config must contains those keys
+        Args:
+            datapoint : 
+                datapoint[1] : torch.tensor([seg1,seg2]) ; 
+            reference : None.
+            metric_config (example): {'seg1_origin' : 'col1', 'seg1_spacing':'col2', 'seg1_direction':'col3','seg2_origin' : 'col4', 'seg2_spacing':'col5', 'seg2_direction':'col6'}.
+        """
+        if not torch.is_tensor(datapoint[1]):
+            raise ValueError("Data must be structured in a torch.tensor.")
+        if len(datapoint[1]) != 2 :
+            raise ValueError("Tensor must contains : segmentation 1 (array), segmentation 2 (array)")
+        if metric_config["seg1_origin"] is None or metric_config["seg1_spacing"] is None or metric_config["seg1_direction"] is None or \
+           metric_config["seg2_origin"] is None or metric_config["seg2_spacing"] is None or metric_config["seg2_direction"] is None :
+            raise ValueError("metric_config must include the following keys : ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'].")
+        
+        seg1_img = sitk.GetImageFromArray(datapoint[1][0])
+        # rebuild segmentation specifications
+        seg1_img.SetOrigin(ast.literal_eval(datapoint[2][str(metric_config["seg1_origin"])])) # origin
+        seg1_img.SetSpacing(ast.literal_eval(datapoint[2][str(metric_config["seg1_spacing"])])) # spacing
+        seg1_img.SetDirection(ast.literal_eval(datapoint[2][str(metric_config["seg1_direction"])])) # direction
+
+        seg2_img = sitk.GetImageFromArray(datapoint[1][1])
+        # rebuild segmentation specifications
+        seg2_img.SetOrigin(ast.literal_eval(datapoint[2][str(metric_config["seg2_origin"])])) # origin
+        seg2_img.SetSpacing(ast.literal_eval(datapoint[2][str(metric_config["seg2_spacing"])])) # spacing
+        seg2_img.SetDirection(ast.literal_eval(datapoint[2][str(metric_config["seg2_direction"])])) # direction
+        
+        
+        hd95 = self._getHD(seg1_img, seg2_img)
+        return hd95
 
     def compute(self, data, reference, metric_config):
         res = MetricResult(
@@ -262,13 +367,12 @@ class HausdorffDistance(StreamMetric):
             value=data,
         )
         return res
-
-
+    
 class HausdorffDistance95(StreamMetric):
     """
     Computes de Hausdorff Distance 95 (in mm) between two segmentations.
     Needs to have two segmentation files in NIFTI format.
-    In the dataset : segmentations are loaded with sitk.ReadImage(segmentation_path).
+    In the dataset : segmentations are loaded with sitk.GetArrayFromImage(sitk.ReadImage(segmentation_path)).
     """
 
     def _mask_to_surface_indices(self, mask_np):
@@ -343,25 +447,61 @@ class HausdorffDistance95(StreamMetric):
             seg2 (sitk Image): second segmentation
 
         Returns:
-            float: Hausdorff Distance 95 : [0;1]
+            float: Hausdorff Distance 95
         """
 
         dists_seg2_to_seg1, dists_seg1_to_seg2 = self._get_distances(seg1, seg2)
-        hd95 = max(
-            np.percentile(dists_seg2_to_seg1, 95), np.percentile(dists_seg1_to_seg2, 95)
-        )
-        return hd95
 
+        # Hausdorff symmetric
+        hd95 = max(np.percentile(dists_seg2_to_seg1, 95), np.percentile(dists_seg1_to_seg2, 95))
+        
+        return hd95
+            
+    
     def aggregate(self, datapoint, reference=None, metric_config=None):
-        if not isinstance(datapoint[1], tuple):
-            raise ValueError(
-                "Two segmentations (in a tuple) are required to compute this metric."
-            )
-        if not isinstance(datapoint[1][0], sitk.SimpleITK.Image) or not isinstance(
-            datapoint[1][1], sitk.SimpleITK.Image
-        ):
-            raise ValueError("Segmentations must be sitk.SimpleITK.Image format.")
-        hd95 = self._getHD95(datapoint[1][0], datapoint[1][1])
+        """
+        Requieres : 
+        - segmentations images in a tensor (datapoint[1])
+        - metric_config to have ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'] keys.
+        This keys are used to map the requiered information about segmentations to the right columns in the metadata file. 
+        Therefore, we need specific information about images in the metadata file. It is accessible with simpleITK : 
+            img_seg1 = sitk.ReadImage(seg1_path)
+            seg1_origin = img_seg1.GetOrigin()
+            seg1_spacing = img_seg1.GetSpacing()
+            seg1_direction = img_seg1.GetDirection()
+        
+        Raises :
+            ValueError : if "datapoint[1]" is not a torch.tensor
+            ValueError : if len(datapoint[1]) != 2 : datapoint[1] must contains seg1 and seg2
+            ValueError : if ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'] not in metric_config.keys() : metric_config must contains those keys
+        Args:
+            datapoint : 
+                datapoint[1] : torch.tensor([seg1,seg2]) ; 
+            reference : None.
+            metric_config (example): {'seg1_origin' : 'col1', 'seg1_spacing':'col2', 'seg1_direction':'col3','seg2_origin' : 'col4', 'seg2_spacing':'col5', 'seg2_direction':'col6'}.
+        """
+        if not torch.is_tensor(datapoint[1]):
+            raise ValueError("Data must be structured in a torch.tensor.")
+        if len(datapoint[1]) != 2 :
+            raise ValueError("Tensor must contains : segmentation 1 (array), segmentation 2 (array)")
+        if metric_config["seg1_origin"] is None or metric_config["seg1_spacing"] is None or metric_config["seg1_direction"] is None or \
+           metric_config["seg2_origin"] is None or metric_config["seg2_spacing"] is None or metric_config["seg2_direction"] is None :
+            raise ValueError("metric_config must include the following keys : ['seg1_origin','seg1_spacing','seg1_direction','seg2_origin','seg2_spacing','seg2_direction'].")
+        
+        seg1_img = sitk.GetImageFromArray(datapoint[1][0])
+        # rebuild segmentation specifications
+        seg1_img.SetOrigin(ast.literal_eval(datapoint[2][str(metric_config["seg1_origin"])])) # origin
+        seg1_img.SetSpacing(ast.literal_eval(datapoint[2][str(metric_config["seg1_spacing"])])) # spacing
+        seg1_img.SetDirection(ast.literal_eval(datapoint[2][str(metric_config["seg1_direction"])])) # direction
+
+        seg2_img = sitk.GetImageFromArray(datapoint[1][1])
+        # rebuild segmentation specifications
+        seg2_img.SetOrigin(ast.literal_eval(datapoint[2][str(metric_config["seg2_origin"])])) # origin
+        seg2_img.SetSpacing(ast.literal_eval(datapoint[2][str(metric_config["seg2_spacing"])])) # spacing
+        seg2_img.SetDirection(ast.literal_eval(datapoint[2][str(metric_config["seg2_direction"])])) # direction
+        
+        
+        hd95 = self._getHD95(seg1_img, seg2_img)
         return hd95
 
     def compute(self, data, reference, metric_config):
