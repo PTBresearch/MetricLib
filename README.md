@@ -18,6 +18,7 @@ metriclib/
         consistency.py
 notebooks/
     example_ptbxl.ipynb
+    example_chaos.ipynb
 data/
 tests/
     __init__.py
@@ -40,7 +41,9 @@ tests/
 ## Usage
 An example implementation of creating a Data Quality report can be found [here](notebooks/example_ptbxl.ipynb)
 
-An example implementation of creating a report on a segmentation usecase can be found [here](notebooks/example_chaos.ipynb) 
+An example implementation of creating a report on a segmentation usecase can be found [here](notebooks/example_chaos.ipynb) .
+The source images are available [here](https://www.dropbox.com/scl/fo/bdjrhx9vfx9h7wqgs5cpc/ALz2cpAkK9E5_R3D1qb5Ojc?rlkey=a9qp79trprktd5zh5mrih8bys&st=kedsvzye&dl=0). 
+Put this folders in "sample-data/CHAOS_dataset" folder.
 
 ## Metrics
 |        Metric Name            | Implemented | Tested |
