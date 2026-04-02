@@ -56,7 +56,10 @@ class Dataset(TorchDataset[_T_co]):
                 - `pd.DataFrame`: DataFrame of metadata with one row per sample.
         """
 
-        if self.metadata is not None and self.labels is not None:
+        if (
+            getattr(self, "metadata", None) is not None
+            and getattr(self, "labels", None) is not None
+        ):
             return self.labels, self.metadata
 
         data = pd.DataFrame(
