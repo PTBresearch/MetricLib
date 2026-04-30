@@ -37,7 +37,7 @@ class SampleEntropy(StreamMetric):
 
         values = []
         for i in range(datapoint[0].shape[0]):
-            x = np.asarray(datapoint[0][i, :], dtype=np.float64)
+            x = np.asarray(datapoint[0][i], dtype=np.float64).ravel()
             if max_points > 1 and x.size > max_points:
                 step = int(np.ceil(x.size / max_points))
                 x = x[::step]
