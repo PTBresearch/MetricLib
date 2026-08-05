@@ -15,6 +15,7 @@ class MetricResult:
     # Optional grouping and threshold info for scoring/aggregation
     cluster: Union[str, None] = None
     threshold: Union[float, None] = None
+    threshold_type: Union[str, None] = "min"
 
 
 _T_co = TypeVar("_T_co", covariant=True)

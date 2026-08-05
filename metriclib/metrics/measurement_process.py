@@ -1114,7 +1114,8 @@ class HausdorffDistance(_HausdorffDistance_tools,StreamMetric):
     def compute(self, data, reference, metric_config):
         res = MetricResult(
             cluster="Measurement Process",
-            threshold=5,
+            threshold=5.0,
+            threshold_type="max",
             description="maximum Hausdorff Distance between two segmentations",
             value=data,
         )
@@ -1213,8 +1214,138 @@ class HausdorffDistance95(_HausdorffDistance_tools, StreamMetric):
     def compute(self, data, reference, metric_config):
         res = MetricResult(
             cluster="Measurement Process",
-            threshold=1,
-            description="Hausdorff Distance 95% \between two segmentations",
+            threshold=1.0,
+            threshold_type="max",
+            description="Hausdorff Distance 95% between two segmentations",
             value=data,
         )
         return res
+
+
+class DICEMean(DICESimilarityCoefficient, StreamMetric):
+    """A custom metric that calculates the mean of a numeric field."""
+
+    def __init__(self):
+        self.dimension = "dice_coefficient"
+        
+    def aggregate(self, datapoint, reference=None, metric_config=None): 
+        DICESimilarityCoefficient.aggregate(datapoint, reference, metric_config)
+
+    def compute(self, data, **kwargs):
+        return MetricResult(
+            value=np.mean(data),
+            cluster="Measurement Process",
+            description="DICE mean",
+        )
+
+class DICEMedian(DICESimilarityCoefficient, StreamMetric):
+    """A custom metric that calculates the mean of a numeric field."""
+
+    def __init__(self):
+        self.dimension = "dice_coefficient"
+        
+    def aggregate(self, datapoint, reference=None, metric_config=None): 
+        DICESimilarityCoefficient.aggregate(datapoint, reference, metric_config)
+
+    def compute(self, data, **kwargs):
+        return MetricResult(
+            value=np.median(data),
+            cluster="Measurement Process",
+            description="DICE median",
+        )
+
+class IntersectionOverUnionMean(IntersectionOverUnion, StreamMetric):
+    """A custom metric that calculates the mean of a numeric field."""
+
+    def __init__(self):
+        self.dimension = "intersection_over_union"
+        
+    def aggregate(self, datapoint, reference=None, metric_config=None): 
+        IntersectionOverUnion.aggregate(datapoint, reference, metric_config)
+
+    def compute(self, data, **kwargs):
+        return MetricResult(
+            value=np.mean(data),
+            cluster="Measurement Process",
+            description="Intersection over Union mean",
+        )
+
+class IntersectionOverUnionMedian(IntersectionOverUnion, StreamMetric):
+    """A custom metric that calculates the mean of a numeric field."""
+
+    def __init__(self):
+        self.dimension = "intersection_over_union"
+        
+    def aggregate(self, datapoint, reference=None, metric_config=None): 
+        IntersectionOverUnion.aggregate(datapoint, reference, metric_config)
+
+    def compute(self, data, **kwargs):
+        return MetricResult(
+            value=np.median(data),
+            cluster="Measurement Process",
+            description="Intersection over Union median",
+        )
+        
+class HausdorffDistanceMean(HausdorffDistance, StreamMetric):
+    """A custom metric that calculates the mean of a numeric field."""
+
+    def __init__(self):
+        self.dimension = "hausdorff_distance"
+        
+    def aggregate(self, datapoint, reference=None, metric_config=None): 
+        HausdorffDistance.aggregate(datapoint, reference, metric_config)
+
+    def compute(self, data, **kwargs):
+        return MetricResult(
+            value=np.mean(data),
+            cluster="Measurement Process",
+            description="HD mean",
+        )
+
+class HausdorffDistanceMedian(HausdorffDistance, StreamMetric):
+    """A custom metric that calculates the mean of a numeric field."""
+
+    def __init__(self):
+        self.dimension = "hausdorff_distance"
+        
+    def aggregate(self, datapoint, reference=None, metric_config=None): 
+        HausdorffDistance.aggregate(datapoint, reference, metric_config)
+
+    def compute(self, data, **kwargs):
+        return MetricResult(
+            value=np.median(data),
+            cluster="Measurement Process",
+            description="HD median",
+        )
+
+class HausdorffDistance95Mean(HausdorffDistance95, StreamMetric):
+    """A custom metric that calculates the mean of a numeric field."""
+
+    def __init__(self):
+        self.dimension = "hausdorff_distance95"
+        
+    def aggregate(self, datapoint, reference=None, metric_config=None): 
+        HausdorffDistance95.aggregate(datapoint, reference, metric_config)
+
+    def compute(self, data, **kwargs):
+        return MetricResult(
+            value=np.mean(data),
+            cluster="Measurement Process",
+            description="HD95 mean",
+        )
+
+class HausdorffDistance95Median(HausdorffDistance95, StreamMetric):
+    """A custom metric that calculates the mean of a numeric field."""
+
+    def __init__(self):
+        self.dimension = "hausdorff_distance95"
+        
+    def aggregate(self, datapoint, reference=None, metric_config=None): 
+        HausdorffDistance95.aggregate(datapoint, reference, metric_config)
+
+    def compute(self, data, **kwargs):
+        return MetricResult(
+            value=np.median(data),
+            cluster="Measurement Process",
+            description="HD95 median",
+        )

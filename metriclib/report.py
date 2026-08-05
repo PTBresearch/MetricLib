@@ -369,10 +369,29 @@ class Report:
             )
 
         def _update_score(dataset_index: int, result: MetricResult) -> None:
-            if result.cluster and result.threshold is not None and result.threshold > 0:
-                metric_score = min(result.value / result.threshold, 1.0)
-                if self.scores[dataset_index][result.cluster] > metric_score:
-                    self.scores[dataset_index][result.cluster] = metric_score
+            if result.threshold_type == "min":
+                if result.cluster and result.threshold is not None and result.threshold > 0:
+                    if isinstance(result.value, list) and not (np.isnan(result.value).any()) :
+                        mean_val = np.mean(result.value)
+                        metric_score = min(mean_val / result.threshold, 1.0)
+                        if self.scores[dataset_index][result.cluster] > metric_score:
+                            self.scores[dataset_index][result.cluster] = metric_score
+                    elif isinstance(result.value, float) and not (np.isnan(result.value)) :
+                        metric_score = min(result.value / result.threshold, 1.0)
+                        if self.scores[dataset_index][result.cluster] > metric_score:
+                            self.scores[dataset_index][result.cluster] = metric_score
+            elif result.threshold_type == "max":
+                if result.cluster and result.threshold is not None and result.threshold > 0:
+                    if isinstance(result.value, list) and not (np.isnan(result.value).any()) :
+                        mean_val = np.mean(result.value)
+                        metric_score = min(result.threshold / mean_val, 1.0)
+                        if self.scores[dataset_index][result.cluster] > metric_score:
+                            self.scores[dataset_index][result.cluster] = metric_score
+                    elif isinstance(result.value, float) and not (np.isnan(result.value)) :
+                        metric_score = min(result.threshold / result.value, 1.0)
+                        if self.scores[dataset_index][result.cluster] > metric_score:
+                            self.scores[dataset_index][result.cluster] = metric_score
+                
 
         def _has_cached_stream_result(dataset: Dataset, metric_key: str) -> bool:
             md = getattr(dataset, "metadata", None)

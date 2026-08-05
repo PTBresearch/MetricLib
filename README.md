@@ -62,11 +62,17 @@ Put this folders in "sample-data/CHAOS_dataset" folder.
 | Wasserstein Distance          |      x      |        |
 | Duplicates                    |      x      |        |
 | Demographic Parity            |      x      |        |
-| Generalized Imabalance Ratio  |      x      |        |
+| Generalized Imbalance Ratio   |      x      |        |
 | DICE Similarity Coefficient   |      x      |        |
 | Intersection over Union       |      x      |        |
 | Hausdorff Distance            |      x      |        |
 | Hausdorff Distance 95         |      x      |        |
+| Image Entropy 3D              |      x      |        |
+| Mean Gradient Magnitude Scale |      x      |        |
+| Approximation TTF50           |      x      |        |
+| Approximation TTF10           |      x      |        |
+| NPS Entropy                   |      x      |        |
+| NPS Total Power 3D            |      x      |        |
 
 
 A documentation of required and optional parameters can be found here: https://github.com/PTBresearch/MetricLib/blob/main/metriclib/metric.py
