@@ -50,7 +50,7 @@ class PearsonCorrelation(StreamMetric):
 
         return (features, data_point[1])
 
-    def compute(self, data, reference=None, metric_config=None):
+    def compute(self, data, reference=None, metric_config=None, metadata=None):
         if not metric_config or "feature_columns" not in metric_config:
             raise ValueError("Metric configuration must include 'feature_columns' key.")
 

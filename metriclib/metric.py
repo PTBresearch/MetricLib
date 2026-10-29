@@ -86,6 +86,7 @@ class StreamMetric(ABC):
     def compute(
         self,
         data: pd.DataFrame,
+        metadata: pd.DataFrame = None,
         reference: Union[pd.DataFrame, None] = None,
         metric_config: Union[str, None] = None,
     ) -> MetricResult:

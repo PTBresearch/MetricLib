@@ -26,7 +26,7 @@ class LimitofQuantification(StreamMetric):
 
         return LoQ
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         return MetricResult(
             cluster=None,
             threshold=0,
@@ -56,7 +56,7 @@ class SampleEntropy(StreamMetric):
 
         return entropy
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         return MetricResult(
             cluster="MeasurementProcess",
             threshold=0,
@@ -74,7 +74,7 @@ class SNR(StreamMetric):
         snr = 10 * np.log10(signal_power / noise_power)
         return snr
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         return MetricResult(
             cluster=None,
             threshold=0.001,
@@ -132,7 +132,7 @@ class ImageEntropy3D(StreamMetric):
         hist = hist[hist > 0]
         return float(-np.sum(hist * np.log2(hist)))
     
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         res = MetricResult(
             cluster=None,
             threshold=0,
@@ -191,7 +191,7 @@ class MeanGradientMagnitudeScale(StreamMetric):
         return float(np.mean(grads))
         
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         res = MetricResult(
             cluster=None,
             threshold=0,
@@ -448,7 +448,7 @@ class ApproxTaskTransferFunction50(_TaskTransferFunction_tools, StreamMetric):
         return ttf50
 
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         res = MetricResult(
             cluster=None,
             threshold=0.15,
@@ -559,7 +559,7 @@ class ApproxTaskTransferFunction10(_TaskTransferFunction_tools, StreamMetric):
         return ttf10
 
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         res = MetricResult(
             cluster="Measurement Process",
             threshold=0.08,
@@ -754,7 +754,7 @@ class TotalPower_NoisePowerSpectrum_avg3D(StreamMetric, _NoisePowerSpectrum_avg3
         return total_power
 
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         res = MetricResult(
             cluster="Measurement Process",
             threshold=0,
@@ -855,7 +855,7 @@ class Entropy_NoisePowerSpectrum_avg3D(StreamMetric, _NoisePowerSpectrum_avg3D_t
         return entropy_nps
 
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         res = MetricResult(
             cluster="Measurement Process",
             threshold=0,
@@ -919,7 +919,7 @@ class DICESimilarityCoefficient(StreamMetric):
         dice = overlap.GetDiceCoefficient()
         return dice
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         res = MetricResult(
             cluster="Measurement Process",
             threshold=0.9,
@@ -983,7 +983,7 @@ class IntersectionOverUnion(StreamMetric):
         iou = overlap.GetJaccardCoefficient()
         return iou
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         res = MetricResult(
             cluster="Measurement Process",
             threshold=0.85,
@@ -1111,7 +1111,7 @@ class HausdorffDistance(_HausdorffDistance_tools,StreamMetric):
         hd = self._getHD(seg1_img, seg2_img)
         return hd
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         res = MetricResult(
             cluster="Measurement Process",
             threshold=5.0,
@@ -1211,7 +1211,7 @@ class HausdorffDistance95(_HausdorffDistance_tools, StreamMetric):
         hd95 = self._getHD95(seg1_img, seg2_img)
         return hd95
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         res = MetricResult(
             cluster="Measurement Process",
             threshold=1.0,

@@ -44,7 +44,7 @@ def _tensor_labels_to_class_series(label_values) -> pd.Series:
             continue
 
         unique_values = torch.unique(flattened)
-        if all(value.item() in {0, 1} for value in unique_values):
+        if flattened.numel() > 1 and all(value.item() in {0, 1} for value in unique_values):
             class_lists.append(
                 [f"Class {index}" for index in torch.where(flattened == 1)[0].tolist()]
             )

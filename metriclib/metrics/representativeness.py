@@ -320,7 +320,7 @@ class MultiClassGeneralizedImbalanceRatio(StreamMetric):
     def aggregate(self, data_point, reference=None, metric_config=None):
         return data_point[1]
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         def _parse_single_class(value):
             if value is None or (isinstance(value, float) and np.isnan(value)):
                 return []
@@ -358,7 +358,7 @@ class MultiClassGeneralizedImbalanceRatio(StreamMetric):
                     isinstance(v, (int, float, np.integer, np.floating)) for v in value
                 ):
                     numeric = np.asarray(value, dtype=float)
-                    if numeric.ndim == 1 and set(np.unique(numeric)).issubset(
+                    if len(numeric) > 1 and numeric.ndim == 1 and set(np.unique(numeric)).issubset(
                         {0.0, 1.0}
                     ):
                         return np.where(numeric == 1.0)[0].astype(int).tolist()
@@ -411,7 +411,7 @@ class MultiLabelGeneralizedImbalanceRatio(StreamMetric):
     def aggregate(self, data_point, reference=None, metric_config=None):
         return data_point[1]
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         counts = np.unique(np.array(data), return_counts=True)[1]
         min_count = min(counts)
         if min_count == 0:
@@ -435,7 +435,7 @@ class MultiClassDemographicParity(StreamMetric):
             data_point[2][metric_config["protected_attribute"]],
         )
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         def _parse_record(record):
             if isinstance(record, str):
                 try:
@@ -549,7 +549,7 @@ class MultiLabelDemographicParity(StreamMetric):
             data_point[2][metric_config["protected_attribute"]],
         )
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         """Compute the demographic parity ratio.
 
         Raises ValueError if any protected group has zero samples for a label.
@@ -587,7 +587,7 @@ class Resolution(StreamMetric):
     def aggregate(self, datapoint, reference=None, metric_config=None):
         return datapoint[0].shape
 
-    def compute(self, data, reference, metric_config):
+    def compute(self, data, reference, metric_config, metadata=None):
         def _to_hashable(value):
             if isinstance(value, np.ndarray):
                 value = value.tolist()

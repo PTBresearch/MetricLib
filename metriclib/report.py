@@ -60,7 +60,8 @@ class Report:
         field = chart_config.get("field")
         prepared = []
         all_keys = set()
-        n_buckets = chart_config.get("n_buckets")
+        buckets = chart_config.get("buckets")
+        n_buckets = len(buckets) if buckets else chart_config.get("n_buckets")
 
         for i, df in enumerate(dataset_dfs):
             if field not in df.columns:
@@ -88,7 +89,7 @@ class Report:
         if not prepared or not all_keys:
             return figure
 
-        if n_buckets is None:
+        if n_buckets is None and buckets is None:
             sorted_keys = sorted(all_keys)
 
             for i, values, filtered_values in prepared:
@@ -124,6 +125,8 @@ class Report:
 
         if min_val == max_val:
             bucket_edges = np.array([min_val, max_val + 1], dtype=np.float64)
+        elif buckets:
+            bucket_edges = np.array(buckets)
         else:
             bucket_edges = np.linspace(
                 min_val, max_val, n_buckets + 1, dtype=np.float64
@@ -535,6 +538,7 @@ class Report:
 
             result = metric_instance.compute(
                 data=metric_instance.result,
+                metadata=dataset.get_metadata(),
                 reference=entry["reference"],
                 metric_config=entry["metric_config"],
             )
